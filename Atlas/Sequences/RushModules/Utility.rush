@@ -1,0 +1,1046 @@
+mappingTable(parameter) {
+  _value = parameter.input.customKey onError e -> if True {
+    _value = parameter.input.defaultKey
+  }
+  _retDict = {}
+  _retDict.output = {}
+  _retDict.result = True
+
+  _mappingTable = parameter.mappingTable
+
+  _mappingValue = _mappingTable[_value] onError e->if True{
+    _mappingValue = "nil"
+    _retDict.result = False
+  }
+
+  _retDict.output = {parameter.output[0] : _mappingValue}
+
+  return _retDict
+}
+
+def calculateExpression(dicSetting){
+    atlasLogInfo("parameter:",dicSetting)
+    outPutKey = dicSetting.output[0]
+    retDict = {
+      "result": True,
+      "output": { outPutKey : ""}
+    }
+    strExpression=dicSetting.Expression onError e -> if True {
+        Atlas.Log.error("Expression is Nil, please write right expression!")
+        retDict = {
+            "result": False,
+            "output": { outPutKey : ""}
+        }
+        return retDict
+    }
+    Result  = calculate(strExpression)
+    if (isBool(Result) and Result == False)
+    {
+        strReturnValue =  "CALCULATOR : ==> unexpected result : " + strExpression
+        atlasLogInfo("ReturnValue = ",strReturnValue)
+        retDict = {
+        "result": False,
+        "output": { outPutKey : ""}
+        }
+    }
+    else
+    {
+        strReturnValue = stringify(Result)
+        atlasLogInfo("ReturnValue = ",strReturnValue)
+        retDict.output[outPutKey] = strReturnValue
+        return retDict
+    }
+}
+# Transfer 3, 5 to up:5,low :3, output [low, up]
+# default [low, up]
+# if the catch string is "up, low", flip key will help to transfer to [low, up],
+def transferToLimit(parameter)
+{
+    atlasLogInfo('Try to transfer keys>>>>>>',System.now())
+    Outputs = parameter.output
+    Input = parameter.input.customKey onError e-> Input = parameter.input.defaultKey
+    Seprate = parameter.seprate onError e-> Seprate = ","
+    atlasLogInfo('Outputs', Outputs,'input', Input, "Seprate", Seprate)
+    bFlip = parameter.flip onError e-> bFlip = 0
+    atlasLogInfo('Outputs', Outputs,'input', Input, "Seprate", Seprate, "Filp", bFlip)
+    retDict = {
+        "result" : True,
+        "output" : {Outputs[0] : "", Outputs[1] : ""}
+    }
+    if Input == "" or isNil(Input)
+    {
+        retDict["result"]=False
+        atlasLogInfo('END to transfer keys>>>>>>',System.now())
+        return retDict
+    }
+    else
+    {
+        limits = Strings.tokenize(Input, Seprate)
+    }
+    if bFlip == 0
+    {
+        atlasLogInfo(limits[0], limits[1])
+        retDict['output'][Outputs[0]] = limits[0]
+        retDict['output'][Outputs[1]] = limits[1]
+        atlasLogInfo('END to transfer keys>>>>>>',System.now())
+        return retDict
+    }
+    else
+    {
+        retDict['output'][Outputs[0]] = limits[1]
+        retDict['output'][Outputs[1]] = limits[0]
+        atlasLogInfo('END to transfer keys>>>>>>',System.now())
+        return retDict
+    }
+
+}
+
+
+def msgboxCommand(dicSetting){
+    atlasLogInfo("parameter:",dicSetting)
+    strType = dicSetting.TYPE
+    strMessage = dicSetting.MESSAGE
+    outPutKey = dicSetting.output[0]
+    bRet = True
+    strReturnValue = ""
+    if(strType == "message"){
+        #popping up a modal window per unit
+        Atlas.call_app("show-form", {"type": "message", "message": strMessage})
+    }
+    else if(strType == "passFail"){
+        #generating a pass fail drop down
+        bRet = Atlas.call_app("show-form", {"type": "passFail", "message": strMessage})
+    }else if(strType == "custom"){
+        dicOption = dicSetting.OPTION
+        Atlas.call_app("show-form",dicOption)
+    }
+    if(bRet)
+        {
+           strReturnValue = "yes"
+        }
+    else
+        {
+            strReturnValue = "no"
+        }
+    atlasLogInfo("ReturnValue = ",strReturnValue)
+    retDict = {
+        "result" : bRet,
+        "output" : { outPutKey : strReturnValue}
+    }
+    return retDict
+}
+
+
+def terminalCommandRun (dicContents)
+{
+    dicContents.ARGS = Strings.tokenize(dicContents.ARGS, ",")
+    # dicContents.PASS_RECEIVE = Strings.tokenize(dicContents.PASS_RECEIVE, ",")
+
+    atlasLogInfo("parameter:",dicContents)
+    # run the task.
+
+    command = dicContents.PATH
+    for obj in dicContents.ARGS{
+      command = command+" "+obj
+    } onError e-> command = ""
+    writeUartLog(command ,"TX ==> Terminal","NOW")
+    dicResult = Atlas.call_plugin("TaskSupport","communicateWithTask",dicContents)
+    strReturnValue = dicResult.returnValue
+    writeUartLog(strReturnValue ,"RX ==> Terminal","NOW")
+    bResult = dicResult.result
+
+    if(bResult == False){
+        strReturnValue    = "run Terminal command error, pleae check the ARGS format!!!"
+        atlasLogInfo("ReturnValue = ",strReturnValue)
+        return _createResponseDict(False,{dicContents.output[0] : strReturnValue})
+    }
+    #Judge the PASS_RECEIVE and FAIL_RECEIVE
+    #if response don't contains any one pass receice in pass recieve array , return fail
+    arrPassReceive = dicContents.PASS_RECEIVE onError e -> dicContents.PASS_RECEIVE = Nil
+    arrPassReceive = dicContents.PASS_RECEIVE
+    if(Nil != arrPassReceive && isArray(arrPassReceive))
+    {
+        iCount  = size(arrPassReceive)
+        for i in range(0,iCount)
+        {
+            iLocation   =   Strings.location_of_substring(Strings.tolower(strReturnValue),Strings.tolower(stringify(arrPassReceive[i])))
+            if(iLocation == Nil)
+            {
+                strReturnValue    = "RX command fail:Catch Passkey: " + stringify(arrPassReceive[i])
+                atlasLogInfo("ReturnValue = ",strReturnValue)
+                return _createResponseDict(False,{dicContents.output[0] : strReturnValue})
+            }
+        }
+    }
+    #if response contains string that is of fail recieve array , return fail
+    arrFailReceive = dicContents.FAIL_RECEIVE onError e -> dicContents.FAIL_RECEIVE = Nil
+    arrFailReceive = dicContents.FAIL_RECEIVE
+    if(Nil != arrFailReceive and isArray(arrFailReceive))
+    {
+        iCount  = size(arrFailReceive)
+        for i in range(0,iCount)
+        {
+            iLocation   =   Strings.location_of_substring(Strings.tolower(strReturnValue),Strings.tolower(stringify(arrFailReceive[i])))
+            if(iLocation != Nil)
+            {
+                strReturnValue    = "RX command fail:Catch fail key: " + stringify(arrFailReceive[i])
+                atlasLogInfo("ReturnValue = ",strReturnValue)
+                return _createResponseDict(False,{dicContents.output[0] : strReturnValue})
+            }
+        }
+    }
+
+    atlasLogInfo("ReturnValue = ",strReturnValue)
+    return _createResponseDict(bResult,{dicContents.output[0] : strReturnValue})
+}
+
+def loopSendCommand(dicSetting)
+{
+  atlasLogInfo("dicSetting###",dicSetting)
+  dirCommand = {}
+  dirCommand["command"] = dicSetting.command
+  iTimeOut = numerify(dicSetting.timeOut)
+  pattern = dicSetting.pattern
+
+  bSubRet = True
+  iStartTime = System.now()
+  # iTimeOut = 8
+  iEndTime = 0.0
+  i = 0
+  # Yogi_Temp_Value = ""
+  # strResult = ""
+  # resultValue = ""
+  while True
+  {
+    if(iEndTime > iTimeOut)
+    {
+     bSubRet = False
+     atlasLogInfo("out of time")
+     bSubRet = False
+     break
+    }
+    response = Atlas.call_plugin("Fixture", "sendCommand", dirCommand)
+
+    # pattern = "fail"
+    groups = Regex.groups(response, pattern, 8)
+
+
+    resultCatch = Nil
+
+    if size(groups) > 0 {
+       resultCatch = groups[0]
+       resultCatch = Regex.replace(resultCatch, "^\\s+", "", 16)
+       resultCatch = Regex.replace(resultCatch, "\\s+$", "", 16)
+       atlasLogInfo("resultCatch")
+    }
+    else {
+          resultCatch = ""
+    }
+    if (resultCatch == ""){
+        atlasLogInfo("no error")
+        atlasLogInfo("iEndTime time",iEndTime)
+        break
+     }
+    else{
+        atlasLogInfo("error, input again")
+        i = i +1
+        atlasLogInfo("error time",i)
+        atlasLogInfo("before sleep time",System.now())
+        System.sleep(0.05)
+        atlasLogInfo("after sleep time",System.now())
+
+       }
+    iEndTime = System.now()-iStartTime
+  }
+  retDict = {
+  "result" : bSubRet,
+  "output" : {dicSetting.output[0]: response
+    }
+  }
+  return retDict
+}
+
+def parseSmokeyReturnValue(dicSetting)
+{
+    # atlasLogInfo("parameters:",dicSetting)
+    atlasLogInfo("Enter the method:parseSmokeyReturnValue")
+    bRet=True
+
+    retDict = {
+        "result" : bRet,
+        "output" : {dicSetting.output[0]: ""}
+    }
+    arrReturn=[]
+    strReturnValue=dicSetting.input.customKey  onError e -> if True {
+        strReturnValue=dicSetting.input.defaultKey
+    }
+    straddFront=dicSetting.addFront onError e ->if True{
+        straddFront=""
+    }
+    straddBehind=dicSetting.addBehind onError e ->if True{
+        straddBehind=""
+    }
+    if(Strings.location_of_substring(strReturnValue,"Hark, Station!")!= Nil) {
+        arrReturn = Regex.groups(strReturnValue,"you!\\n\\r*(\\w+.*?,.*?,.*?,.*?,.*?)\\n",8)
+        atlasLogInfo("lllllll=>",arrReturn)
+        count=size(arrReturn)
+        atlasLogInfo("item count=>",count)
+        if count==0{
+            bRet=bRet and False
+            retDict.output[dicSetting.output[0]]= "please check the log format or regex method"
+        }
+        else
+        {
+            csvString = ""
+            uartString = ""
+            for i in range(0,count){
+                arrValue= Strings.tokenize(arrReturn[i], ",")
+                itemsStartTime=System.now()
+                testName=straddFront+String_TrimSpace(arrValue[0])+straddBehind
+                value=arrValue[1]
+                units=arrValue[2]
+                if units=="nil" or units ==""{
+                    units="NA"
+                }
+                lowerLimit=arrValue[3]
+                upperLimit=arrValue[4]
+                if lowerLimit =="" or lowerLimit == "nil"{
+                    lowerLimit = :NIL:
+                }
+                else
+                {
+                    lowerLimit = numerify(lowerLimit)
+                }
+                if upperLimit =="" or upperLimit == "nil"{
+                    upperLimit = :NIL:
+                }
+                else
+                {
+                    upperLimit = numerify(upperLimit)
+                }
+                # _limit = {"lowerLimit":lowerLimit,"upperLimit":upperLimit,"name": testName}
+                # atlasLogInfo("all parameter>>>>>>>>>>>", lowerLimit, upperLimit, units)
+                _limit = Atlas.create_limit(testName, upperLimit, lowerLimit, :NIL:,:NIL:,units)
+                if has_key(Globals.system.limits["Limits"],testName)==True {
+                    atlasLogInfo("Replace the limit from station limit file!")
+                    _limit = Globals.system.limits["Limits"][testName]
+                    if has_key(_limit,"units")==False {
+                        _limit = _limit + {"units": "na"}
+                    }
+                }
+                atlasLogInfo("Atlas limit >>>>>", _limit)
+                itemResult = Atlas.create_record([testName], numerify(value),_limit.units, _limit) onError e-> if True{
+                    itemResult = {"Status": -1}
+                    Atlas.create_record([testName], False, "Create reord with value and limits failure, value="+stringify(value))
+                }
+                atlasLogInfo('Create reocrd>>>>>', itemResult, _limit)
+                atlasLogInfo("itemResult",itemResult)
+                if has_key(_limit,"lowerLimit") == False {
+                    _limit = _limit + {"lowerLimit": "NA"}
+                }
+                if has_key(_limit,"upperLimit") == False {
+                    _limit = _limit + {"upperLimit": "NA"}
+                }
+                formatSpec = "["+stringify(_limit.lowerLimit)+","+stringify(_limit.upperLimit)+"]"
+                atlasLogInfo("formatSpec:",formatSpec)
+                failInfo=""
+                if itemResult["Status"] == Atlas.OverallResult.Pass {
+                    result="0"
+                }
+                else
+                {
+                   result="1"
+                   bRet= bRet and False
+                   failInfo="failed limit"
+                }
+                atlasLogInfo("result:",result)
+                costTime = System.now()-itemsStartTime
+                uartTitle = formatString("-","")
+                csvString = csvString + testName+","+result+","+stringify(value)+","+stringify(_limit.lowerLimit)+","+stringify(_limit.upperLimit)+","+units+","+stringify(costTime)+","+failInfo+"\n"
+                uartString = uartString+uartTitle+"\n"
+                uartString = uartString + "Test Name: "+testName+"\nTest Time: "+stringify(costTime)+"\nTest Spec: "+formatSpec+"\nTest Value: "+stringify(value)+"\n"
+
+                Globals.system.summary.testItem = Globals.system.summary.testItem + testName + ","
+                Globals.system.summary.upperLimits = Globals.system.summary.upperLimits + stringify(_limit.upperLimit) +","
+                Globals.system.summary.lowerLimits = Globals.system.summary.lowerLimits + stringify(_limit.lowerLimit) +","
+                Globals.system.summary.units = Globals.system.summary.units + units +","
+                Globals.system.summary.testValues = Globals.system.summary.testValues + stringify(value) + ","
+            }
+            writeCSVLog(csvString)
+            writeUartLog(uartString,Nil,Nil)
+        }
+    }
+    retDict.result= bRet
+    return retDict
+}
+
+def JSON_LoadFromString(string)
+{
+  if isNil(string) {
+    emptyDict = {}
+    return emptyDict
+  }
+  return JSON.parse(string)
+}
+
+def UI_ShowMessage(msg)
+{
+  msg = stringify(msg)
+  # Log_Info("UI --> Show ,", msg)
+  Atlas.call_app("show-form", { "type" : "message", "message" : msg})
+}
+
+def caseToTest(parameter) {
+
+  # _inputDistKey = parameter.input[0]
+  _pattern = parameter.pattern
+
+  # _value = getValueFromShareDict(shareDict,_inputDistKey)
+  _value = parameter.input[0]
+
+  if Regex_IsMatch(_value,_pattern)==True {
+    Globals.system.skipTestCount = 0
+  }
+  else {
+    Globals.system.skipTestCount = parameter.count
+  }
+
+  _retDict = {}
+  _retDict.output = {}
+
+  return _retDict
+}
+
+def purgeShareDictionary(parameter) {
+  _retDict = {}
+  _retDict.output = {}
+
+  return _retDict
+}
+
+def DUT_createFakeResponse(shareDict,parameter) {
+
+  commands = parameter.command
+  _key = parameter.output[0]
+
+  file_path = "/Users/dic/Downloads/temp/dut_response.txt"
+  if True {
+    file_path = parameter.filePath
+  } onError e -> file_path = "/Users/dic/Downloads/temp/dut_response.txt"
+
+  string = FileSystem_ReadFile(file_path)
+
+  cacheToShareDict(shareDict,_key,string)
+}
+
+def JSON_Load(path)
+{
+  return Atlas.call_plugin("JsonPlugin", "load", {"path" : path})
+}
+
+#======================================================================================#
+checkSmokeyAllError(parameter) {
+  # commands = parameter.command
+
+  # _inputDistKey = parameter.input[0]
+  # _cachedString = getValueFromShareDict(shareDict,_inputDistKey)
+  _cachedString = parameter.input.customKey onError e -> if True {
+    _cachedString = parameter.input.defaultKey
+  }
+
+  if True {
+    _testName = parameter.name
+  } onError e -> _testName = parameter.testName
+
+  _result = Item_Str_Smokey_CheckAllError(_testName,_cachedString)
+
+  _retDict = {}
+  _retDict.result = _result
+  _retDict.output = {}
+
+  return _retDict
+}
+
+createSmokeyTestRecords(parameter) {
+
+  _result = False
+
+  _outputDict = checkSmokeyAllError(parameter)
+  _result_AllErrorCheck = _outputDict.result
+
+  _cachedString = parameter.input.customKey onError e -> if True {
+    _cachedString = parameter.input.defaultKey
+  }
+
+  _action = "exclude"
+  if has_key(parameter,"action") {
+    _action = parameter.action
+  }
+
+  _filterNames = []
+  if has_key(parameter,"filterNames") {
+    _filterNames = parameter.filterNames
+  }
+
+  _prefix = ""
+  if has_key(parameter,"prefix") {
+    _prefix = parameter.prefix
+  }
+
+
+  _postfix = ""
+  if has_key(parameter,"postfix") {
+    _postfix = parameter.postfix
+  }
+
+  _outputPrefix = ""
+  if has_key(parameter,"outputPrefix") {
+    _outputPrefix = parameter.outputPrefix
+  }
+
+
+  _outputPostfix = ""
+  if has_key(parameter,"outputPostfix") {
+    _outputPostfix = parameter.outputPostfix
+  }
+
+  if True {
+    _testName = parameter.name
+  } onError e -> _testName = parameter.testName
+
+  # _Item_Str_Smokey_GetItems(smokeyTestName, str_smokeyRes, prefix, postfix, filterNames, action)
+  smokeyTestItemsDict = _Item_Str_Smokey_GetItems(_testName,_cachedString, _prefix, _postfix, _filterNames, _action, parameter)
+
+  _retDict = {}
+  _retDict.result = True
+  _retDict.output = {}
+
+  for key,value in smokeyTestItemsDict {
+    # UI_ShowMessage(_outputPrefix+key+_outputPostfix)
+    # UI_ShowMessage(stringify(value))
+    # cacheToShareDict(shareDict,_outputPrefix+key+_outputPostfix,value)
+    _retDict.output = _retDict.output + {_outputPrefix+key+_outputPostfix : value}
+  }
+
+  return _retDict
+}
+
+# FX_mappingTable(parameter) {
+#   _value = parameter.input.customKey onError e -> if True {
+#     _value = parameter.input.defaultKey
+#   }
+
+#   _mappingTable = parameter.mappingTable
+
+#   _mappingValue = _mappingTable[_value]
+
+#   _retDict = {}
+#   _retDict.output = {}
+
+#   _retDict.output = {parameter.output[0] : _mappingValue}
+
+#   return _retDict
+# }
+
+#Item_Str_Smokey_GetItems(smokeyTestName, str_smokeyRes[,skipnames])
+#Item_Str_Smokey_GetItems(smokeyTestName, str_smokeyRes[,prefix, postfix])
+#_Item_Str_Smokey_GetItems(smokeyTestName, str_smokeyRes, optionalArgs...)
+_Item_Str_Smokey_GetItems(smokeyTestName, str_smokeyRes, prefix, postfix, filterNames, action, parameter)
+{
+  retDict = {}
+
+  wholeItem = FX_Regex_MatchesOfSubpattern(str_smokeyRes, "you!\n(.*?),(.*?),(.*?),(.*?),(.*?)$") onError e -> if True
+  {
+    errorInfor = "Can not get test items from smokey response!"
+    # FX_CreateRecord([smokeyTestName, errorInfor], False)
+    # Atlas.create_record([smokeyTestName, errorInfor], False)
+    _record = Atlas.create_record([parameter.testName, "SmokeyResponse"], False,errorInfor)
+    # logMsg = _generateRecordPlainString(_record)
+    # logInfo("*****", "Add Record:", logMsg, "*****")
+    # Globals.system.testRecords = Globals.system.testRecords :: _record
+    return ""
+  }
+  for items in wholeItem
+  {
+
+    keepGoing = True
+
+    itemname = items[1]
+
+
+    if size(filterNames) > 0 {
+      if action=="exclude" {
+        keepGoing = True
+
+        for name in filterNames {
+          if FX_String_IsContain(itemname,name,False)==True {
+            keepGoing = False
+          }
+        }
+      }
+      else if action=="include" {
+        keepGoing = False
+
+        for name in filterNames {
+          if FX_String_IsContain(itemname,name,False)==True {
+            keepGoing = True
+          }
+        }
+      }
+
+      if keepGoing==False {
+        continue
+      }
+    }
+
+      # for name in filterNames {
+      #   if FX_String_IsContain(itemname,name,False)==True {
+      #     continue
+      #   }
+      # }
+
+      if True {
+        itemname = prefix + itemname + postfix
+      }
+
+      # if size(optionalArgs) == 1 && isString(optionalArgs[0])
+      # {
+      #   if FX_String_IsContain(optionalArgs[0], itemname, False)
+      #   {
+      #     continue
+      #   }
+      # }
+      # else if size(optionalArgs) == 2 && isString(optionalArgs[0]) && isString(optionalArgs[1])
+      # {
+      #   prefix  = optionalArgs[0]
+      #   postfix = optionalArgs[1]
+      #   itemname = prefix + itemname + postfix
+      # }
+
+      # Log_Info(itemname)
+      itemvalue = numerify(items[2])
+      # Log_Info(itemvalue)
+      units = items[3]
+      # Log_Info(units)
+
+      _limit =
+      {
+        #"lowerLimit": lowerLimit,
+        "name": itemname,
+        "units": units,
+        #"upperLimit": upperLimit,
+        #"relaxedUpperLimit": numRelaxedMax,
+        #"relaxedLowerLimit": numRelaxedMin
+
+      }
+
+      lowerLimit = items[4]
+      if lowerLimit == "nil" || lowerLimit == ""
+      {
+        lowerLimit = "N/A"
+
+      }
+      else {
+        _limit = _limit + {"lowerLimit": numerify(lowerLimit)}
+      }
+
+      upperLimit = items[5]
+      if upperLimit == "nil" || upperLimit == ""
+      {
+        upperLimit = "N/A"
+      }
+      else {
+        _limit = _limit + {"upperLimit": numerify(upperLimit)}
+      }
+
+      # Item_Str_CheckWithLimit(itemname, itemvalue, lowerLimit, upperLimit, units)
+      _record = Atlas.create_record([parameter.testName, itemname], numerify(itemvalue), units, _limit)
+      # logMsg = _generateRecordPlainString(_record)
+      # logInfo("*****", "Add Record:", logMsg, "*****")
+      # Globals.system.testRecords = Globals.system.testRecords :: _record
+
+      retDict = retDict + {itemname:itemvalue}
+  }
+
+  return retDict
+}
+
+_Item_Str_Smokey_GetItems_V2(smokeyTestName, str_smokeyRes, prefix, postfix, filterNames, action, parameter)
+{
+  retDict = {}
+
+  _pattern = "you!\n(.*?),(.*?),(.*?),(.*?),(.*?)$"
+
+  _matches = Regex.matches(str_smokeyRes,_pattern,16)
+
+  if size(_matches)==0 {
+    errorInfor = "Can not get test items from smokey response!"
+    Atlas.create_record([smokeyTestName, errorInfor], False)
+  }
+
+  for items in wholeItem
+  {
+
+    keepGoing = True
+
+    itemname = items[1]
+
+
+    if size(filterNames) > 0 {
+      if action=="exclude" {
+        keepGoing = True
+
+        for name in filterNames {
+          if FX_String_IsContain(itemname,name,False)==True {
+            keepGoing = False
+          }
+        }
+      }
+      else if action=="include" {
+        keepGoing = False
+
+        for name in filterNames {
+          if FX_String_IsContain(itemname,name,False)==True {
+            keepGoing = True
+          }
+        }
+      }
+
+      if keepGoing==False {
+        continue
+      }
+    }
+
+
+    if True {
+      itemname = prefix + itemname + postfix
+    }
+
+    # Log_Info(itemname)
+    itemvalue = numerify(items[2])
+    # Log_Info(itemvalue)
+    units = items[3]
+    # Log_Info(units)
+
+    _limit =
+    {
+      #"lowerLimit": lowerLimit,
+      "name": itemname,
+      "units": units,
+      #"upperLimit": upperLimit,
+      #"relaxedUpperLimit": numRelaxedMax,
+      #"relaxedLowerLimit": numRelaxedMin
+
+    }
+
+    lowerLimit = items[4]
+    if lowerLimit == "nil" || lowerLimit == ""
+    {
+      lowerLimit = "N/A"
+
+    }
+    else {
+      _limit = _limit + {"lowerLimit": numerify(lowerLimit)}
+    }
+
+    upperLimit = items[5]
+    if upperLimit == "nil" || upperLimit == ""
+    {
+      upperLimit = "N/A"
+    }
+    else {
+      _limit = _limit + {"upperLimit": numerify(upperLimit)}
+    }
+
+    Atlas.create_record([parameter.testName, itemname], numerify(itemvalue), units, _limit)
+
+    retDict = retDict + {itemname:itemvalue}
+  }
+
+  return retDict
+}
+
+Item_Str_Smokey_CheckAllError(name, str_RawData)
+{
+  bol_result = True
+
+  if FX_String_IsContain(str_RawData, "All errors:", True)
+  {
+    bol_result = False
+    substring = String_SubStringByPreAndPost(str_RawData, "All errors:", "")
+    raise exception(Atlas.Exceptions.TestFailedError, substring,"The string contains error information:")
+  } onError e -> if True
+  {
+    errorInfor = "The smokey response string contains error information!"
+    # FX_CreateRecord([name, "", errorInfor], bol_result)
+    _record = Atlas.create_record([name, "SmokeyCheckAllError"], bol_result, errorInfor)
+    # logMsg = _generateRecordPlainString(_record)
+    # logInfo("*****", "Add Record:", logMsg, "*****")
+    # Globals.system.testRecords = Globals.system.testRecords :: _record
+    return bol_result
+  }
+  # FX_CreateRecord([name], bol_result)
+  _record = Atlas.create_record([name,"SmokeyCheckAllError"], bol_result)
+  # logMsg = _generateRecordPlainString(_record)
+  # logInfo("*****", "Add Record:", logMsg, "*****")
+  # Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  return bol_result
+
+}
+
+def Convert_StringToNumber(string)
+{
+  return Atlas.call_plugin("ConvertPlugin", "stringToNumber", {"string": string})
+}
+
+def Convert_HexStringToString(hexString)
+{
+  return Atlas.call_plugin("ConvertPlugin", "hexStringToString", {"hexString": hexString})
+}
+
+def convertHexStringToString(parameter)
+{
+  _cachedString = parameter.input.customKey onError e -> if True {
+    _cachedString = parameter.input.defaultKey
+  }
+  _result = Atlas.call_plugin("ConvertPlugin", "hexStringToString", {"hexString": _cachedString})
+  # _result = Convert_HexStringToString(_cachedString)
+  return _createResponseDict(True,{parameter.output[0] : _result})
+}
+
+def convertDecToHex(parameter)
+{
+  _cachedString = parameter.input.customKey onError e -> if True {
+    _cachedString = parameter.input.defaultKey
+  }
+
+  _result = Atlas.call_plugin("ConvertPlugin", "numberToHexString", {"number": numerify(_cachedString)})
+  _result = Strings.toupper(_result)
+  # _result = Convert_HexStringToString(_cachedString)
+  return _createResponseDict(True,{parameter.output[0] : _result})
+}
+
+def convertDecToBin(parameter)
+{
+  _cachedString = parameter.input.customKey onError e -> if True {
+    _cachedString = parameter.input.defaultKey
+  }
+  _result = Atlas.call_plugin("ConvertPlugin", "numberToBinString", {"number": _cachedString})
+  return _createResponseDict(True,{parameter.output[0] : _result})
+}
+
+def convertBinToDec(parameter)
+  {
+    _cachedString = parameter.input.customKey onError e -> if True {
+      _cachedString = parameter.input.defaultKey
+    }
+
+    _result = Atlas.call_plugin("ConvertPlugin", "binStringToNumber", {"string": _cachedString})
+
+    return _createResponseDict(True,{parameter.output[0] : _result})
+  }
+
+def sendShellCommand(parameter){
+  _command = parameter.input.customKey onError e -> if True {
+    _command = parameter.input.defaultKey
+  }
+
+  response = Atlas.call_plugin("CPlusPlusCommon", "RunShellCommand", {"command" : _command})
+  return _createResponseDict(True,{parameter.output[0] : response})
+}
+
+
+
+def hasDuplicateValueInDictionary(dict)
+{
+  duplicates = {}
+  for i in dict  {
+    duplicates[stringify(dict[i])] = 1
+  }
+
+  return size(duplicates) != size(dict)
+}
+
+
+def readCSVtoString(parameter){
+  _csv_file_path = parameter.input.customKey onError e -> if True {
+    _csv_file_path = parameter.input.defaultKey
+  }
+
+  _csvDataContent = Atlas.call_plugin("FileSystemPlugin", "readFile", {"path": _csv_file_path, "encoding" : "utf8"})
+  atlasLogInfo(_csvDataContent)
+  # UI_ShowMessage(_csvDataContent)
+  return _createResponseDict(True,{parameter.output[0] : _csvDataContent})
+
+}
+
+def limitFileGenerator(jsonPath,outputLimitFilePath) {
+  _json_dict = JSON_Load(jsonPath)
+
+  _wholeLimitDataArr = []
+
+
+  for item in _json_dict.data.tests {
+
+    limitObj = {}
+
+    limitObj._group = "EVT"
+    limitObj._name = Nil
+    limitObj._unit = Nil
+    limitObj._upperLimit = Nil
+    limitObj._lowerLimit = Nil
+    limitObj._relaxedUpperLimit = Nil
+    limitObj._relaxedLowerLimit = Nil
+    limitObj._pattern = Nil
+    limitObj._materialKey = Nil
+    limitObj._materialValue = Nil
+
+    limitObj._name = item.Name.main
+
+
+    limitObj._unit = item.Specification.units onError e -> if True {
+      limitObj._unit = Nil
+    }
+
+    if has_key(item.Specification,"match") {
+      _pattern = ""
+      for _oneMatch in item.Specification.match {
+        _pattern = _pattern + "|" + _oneMatch
+      }
+      _pattern = FX_String_TrimBegin(_pattern,"|")
+      _pattern = FX_String_TrimEnd(_pattern,"|")
+      limitObj._pattern = _pattern
+    }
+
+    if isNil(limitObj._pattern)==False {
+      limitObj._unit = "match"
+    }
+
+    limitObj._upperLimit = item.Specification.max onError e -> if True {
+      limitObj._upperLimit = Nil
+    }
+
+    limitObj._lowerLimit = item.Specification.min onError e -> if True {
+      limitObj._lowerLimit = Nil
+    }
+
+    limitObj._commands = item.Commands onError e -> if True {
+      limitObj._commands = Nil
+    }
+
+    if has_key(item.Specification,"max1") {
+      limitObj._upperLimit = Nil
+      limitObj._lowerLimit = Nil
+      limitObj._unit = "match"
+
+      limitObj._pattern = item.Specification
+    }
+
+    if isString(limitObj._lowerLimit) && limitObj._lowerLimit=="N/A"{
+      limitObj._lowerLimit = Nil
+    }
+
+    if isString(limitObj._upperLimit) && limitObj._upperLimit=="N/A"{
+      limitObj._upperLimit = Nil
+    }
+
+    _wholeLimitDataArr = _wholeLimitDataArr :: limitObj
+
+  }
+
+  singleCsvRow = [["group" ,"name" ,"units" ,"upperLimit" ,"lowerLimit" ,"relaxedUpperLimit" ,"relaxedLowerLimit" ,"pattern" ,"materialKey" ,"materialValue" ,"command"]]
+  for limitObj in _wholeLimitDataArr {
+
+    singleCsvRow = singleCsvRow :: [limitObj._group ,limitObj._name ,limitObj._unit ,limitObj._upperLimit ,limitObj._lowerLimit ,limitObj._relaxedUpperLimit ,limitObj._relaxedLowerLimit ,choice(isNil(limitObj._pattern),limitObj._pattern,stringify(limitObj._pattern)) ,limitObj._materialKey ,limitObj._materialValue ,choice(limitObj._commands==["*"],Nil,stringify(limitObj._commands))]
+  }
+  BasicCSV.save(outputLimitFilePath, singleCsvRow)
+}
+
+def PythonModuleFunc(parameter){
+  _module = parameter.module
+  _function = parameter.function
+  _args = []
+  _args = _args :: parameter.args
+  _defaultTimeout = 60
+  _result = Atlas.call_plugin("PythonPlugin", "call", {"moduleName" : _module, "funcName" : _function, "args" : _args, "timeout" : _defaultTimeout})
+
+  return _createResponseDict(True,{parameter.output[0] : _result})
+}
+
+def Fixture_SendAndGet_v2(command)
+{
+  # return Atlas.call_plugin("Fixture", "sendAndGet", {"command" : command})
+
+  _PDCADict = {}
+  _PDCADict.testname = "Fixture"
+  _PDCADict.subtestname = "sendCommand"
+  _PDCADict.subsubtestname = command
+
+  # logMsg = cformat("Write --> %s,%s","Fixture",command)
+  # logInfo(logMsg)
+
+  stationName = StationInfo.station_type()
+
+  if stationName == "QT1-PREBURN"
+  {
+    _pluginname = cformat("Fixture_%s",Atlas.Unit.unit_identifier)
+  }
+  else
+  {
+    _pluginname = "Fixture"
+  }
+  _response = Atlas.call_plugin(_pluginname, "sendCommand", {"command" : command,"timeout": 15}+_PDCADict)
+
+  # logMsg = cformat("Read <-- %s,%s","Fixture",stringify(_response))
+  # logInfo(logMsg)
+
+  return _response
+}
+
+def Fixture_TCPIPSendAndGet_v2(command)
+{
+  # return Atlas.call_plugin("Fixture", "sendAndGet", {"command" : command})
+  # logMsg = cformat("Write --> %s,%s","Fixture",command)
+  # logInfo(logMsg)
+
+  stationName = StationInfo.station_type()
+
+  # if stationName == "QT1-PREBURN"
+  # {
+  #   _pluginname = cformat("Fixture_%s",Atlas.Unit.unit_identifier)
+  # }
+  # else
+  # {
+  #   _pluginname = "Fixture"
+  # }
+  _pluginname = cformat("Fixture_%s",Atlas.Unit.unit_identifier)
+  _response = Atlas.call_plugin(_pluginname, "sendCommand", {"command" : command,"timeout":10})
+
+  # logMsg = cformat("Read <-- %s,%s","Fixture",stringify(_response))
+  # logInfo(logMsg)
+
+  return _response
+}
+
+
+
+def Unit_SendAndGet_v2(command)
+{
+  _PDCADict = {}
+  _PDCADict.testname = "Dut"
+  _PDCADict.subtestname = "sendCommand"
+  _PDCADict.subsubtestname = command
+
+  # logMsg = cformat("Write --> %s,%s","Dut",command)
+  # logMsg = stringify("Write --> Dut," + command)
+  # logInfo(logMsg)
+
+  _response = Atlas.call_plugin("Dut", "sendCommand", {"command": command,"timeout": 15}+_PDCADict)
+
+  # logMsg = cformat("Read <-- %s,%s","Dut",stringify(_response))
+  # logMsg = stringify("Read --> Dut," + _response)
+  # logInfo(logMsg)
+
+  return _response
+}

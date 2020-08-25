@@ -1,0 +1,3579 @@
+def calCameraSN(dicSetting)
+{
+    atlasLogInfo("parameter:",dicSetting)
+    arrCameraData  = dicSetting.input.cameraData onError e-> arrCameraData=[]
+    outputKey      = dicSetting.output[0]
+    retDict = {
+        "result" : True,
+        "output" : {outputKey : ""}
+    }
+
+    if(arrCameraData == Nil or arrCameraData == ""){
+        Atlas.Log.error("arrCameraData is Nil,please check it!")
+        retDict.result = False
+        return retDict
+    }
+
+    #Get the PPPYWW
+    dicSN_PPPYWW    = dicSetting.address.PPPYWW onError e-> dicSN_PPPYWW={}
+    iBegin          = dicSN_PPPYWW.beginIndex   onError e-> iBegin=0
+    iEnd            = dicSN_PPPYWW.endIndex     onError e-> iEnd=0
+    atlasLogInfo("PPPYWW range is", iBegin, "to", iEnd)
+    if(size(arrCameraData) < iEnd || iBegin > iEnd){
+        Atlas.Log.error("Can't get enough data or invaild index about PPPYWW")
+        retDict.result = False
+        return retDict
+    }
+    strReturnValue = ""
+    for index in range(iBegin,iEnd+1)
+    {
+        strReturnValue = strReturnValue+arrCameraData[index]
+    }
+    dictConvertion = {"input":{"key": strReturnValue},"change": 16, "to": 34, "place": 6,"output" : dicSetting.output }
+
+    dicResult      = numberSystemConvertion(dictConvertion)
+    atlasLogInfo("SSS",dicResult)
+
+    strkeyForCam = dicSetting.output[0]
+    strSN_PPPYWW = dicResult.output[strkeyForCam]
+    if(dicResult.result == False){
+        Atlas.Log.error("PPPYWW catch wrong value,please check!")
+        retDict.result = False
+        return retDict
+    }
+    atlasLogInfo("strSN_PPPYWW is",strSN_PPPYWW)
+
+    #Get the DSSSS
+    dicSN_DSSSS    = dicSetting.address.DSSSS    onError e-> dicSN_DSSSS={}
+    iBegin         = dicSN_DSSSS.beginIndex     onError e-> iBegin=0
+    iEnd           = dicSN_DSSSS.endIndex       onError e-> iEnd=0
+    atlasLogInfo("DSSSS range is", iBegin, "to", iEnd)
+
+    if(size(arrCameraData) < iEnd || iBegin > iEnd){
+        Atlas.Log.error("Can't get enough data or invaild index about DSSSS")
+        retDict.result = False
+        return retDict
+    }
+    strReturnValue = ""
+    for index in range(iBegin,iEnd+1)
+    {
+        strReturnValue = strReturnValue+arrCameraData[index]
+    }
+    dictConvertion = {"input":{"key": strReturnValue},"change": 16, "to": 34, "place": 5,"output" : dicSetting.output}
+    dicResult      = numberSystemConvertion(dictConvertion)
+    strkeyForCam = dicSetting.output[0]
+    strSN_DSSSS = dicResult.output[strkeyForCam]
+    if(dicResult.result == False){
+        Atlas.Log.error("DSSSS catch wrong value,please check!")
+        retDict.result = False
+        return retDict
+    }
+    atlasLogInfo("strSN_DSSSS is",strSN_DSSSS)
+
+    #Get the EEEERX
+    dicSN_EEEERX = dicSetting.address.EEEERX onError e-> dicSN_EEEERX={}
+    iBegin       = dicSN_EEEERX.beginIndex onError e-> iBegin=0
+    iEnd         = dicSN_EEEERX.endIndex onError e-> iEnd=0
+    atlasLogInfo("EEEERX range is", iBegin, "to", iEnd)
+
+    if(size(arrCameraData) < iEnd || iBegin > iEnd){
+         Atlas.Log.error("Can't get enough data or invaild index about EEEERX")
+        retDict.result = False
+        return retDict
+    }
+    strReturnValue = ""
+    for index in range(iBegin,iEnd+1)
+    {
+        strReturnValue = strReturnValue+arrCameraData[index]
+    }
+    dictConvertion = {"input":{"key": strReturnValue},"change": 16, "to": 34, "place": 6,"output" : dicSetting.output}
+    dicResult      = numberSystemConvertion(dictConvertion)
+    strkeyForCam = dicSetting.output[0]
+    strSN_EEEERX = dicResult.output[strkeyForCam]
+    if(dicResult.result == False){
+        Atlas.Log.error("EEEERX catch wrong value,please check!")
+        retDict.result = False
+        return retDict
+    }
+    atlasLogInfo("strSN_EEEERX is",strSN_EEEERX)
+
+    #get full camera SN
+    strCameraSN = strSN_PPPYWW+strSN_DSSSS+strSN_EEEERX
+    atlasLogInfo("Calcualtion CameraSN is",strCameraSN)
+
+    #check sum
+    strSerialConst = strCameraSN[:-1]# now the length sn is 16
+    dicResult  = addCheckDigit(strSerialConst)
+    bAddResult = dicResult["result"] onError e-> bAddResult = False
+    strFinalSN = dicResult["CAMERA_SN"] onError e-> strFinalSN = ""
+    bVerifyResult = verifyCheckDigit(strFinalSN)
+    if(!bAddResult || !bVerifyResult || strCameraSN != strFinalSN){
+        Atlas.Log.error("Checksum fail, Cal_SN is "+ strCameraSN + " and checksum SN is ",strFinalSN)
+        retDict.result = False
+        return retDict
+    }
+    retDict.output[outputKey] = strFinalSN
+    return retDict
+}
+
+
+def doChecksum(dicSetting)
+{
+    atlasLogInfo("parameter:",dicSetting)
+
+    iBegin         = dicSetting.beginIndex onError e-> iBegin=0
+    iEnd           = dicSetting.endIndex onError e-> iEnd=0
+    arrCameraData  = dicSetting.input.cameraData onError e-> arrCameraData=Nil
+    outputKey      = dicSetting.output[0]
+    retDict = {
+        "result" : True,
+        "output" : {outputKey : ""}
+    }
+
+    strReturnValue = ""
+    if(arrCameraData != Nil or arrCameraData != "")
+    {
+        iAryLength  = size(arrCameraData)
+        if(iEnd == Nil or iBegin==Nil or iEnd >= iAryLength){
+            Atlas.Log.error("Fromat error or iEnd index out of range!")
+            retDict.result = False
+            return retDict
+        }
+
+        iSum = 0
+        for index in range(iBegin,iEnd+1)
+        {
+            strValue = arrCameraData[index]
+            iValue = numerify('0x'+strValue)
+            iSum = iSum+iValue
+        }
+        numSum = (256-Bitops.bitAnd(iSum,0xFF))
+        iChecksum = Bitops.bitAnd(numSum,0xFF)
+        strReturnValue = stringify(iChecksum)
+    }
+    else{
+        Atlas.Log.error("arrCameraData is Nil,please check it!")
+        retDict.result = False
+    }
+    retDict.output[outputKey] = strReturnValue
+    return retDict
+}
+
+def doCameraData(dicSetting)
+{
+    atlasLogInfo("parameters :", dicSetting)
+
+    iBegin         = dicSetting.beginIndex onError e-> iBegin=0
+    iEnd           = dicSetting.endIndex onError e-> iEnd=0
+    arrCameraData  = dicSetting.input.cameraData onError e-> arrCameraData=Nil
+    outputKey      = dicSetting.output[0]
+    retDict = {
+        "result" : True,
+        "output" : {outputKey : ""}
+    }
+
+    if(arrCameraData != Nil)
+    {
+        iAryLength  = size(arrCameraData)
+
+        if(iEnd != Nil && iEnd >= iAryLength){
+            Atlas.Log.error("Can't get enough data or End digit is out of range!")
+            retDict.result = False
+            return retDict
+        }
+
+        strReturnValue = ""
+        if(iBegin == Nil && iEnd == Nil){
+            for index in range(0,iAryLength-1){
+                strReturnValue = strReturnValue + arrCameraData[index] + " "
+            }
+            strReturnValue = strReturnValue + arrCameraData[iAryLength-1]
+        }
+        else if(iBegin == Nil && iEnd != Nil){
+            for index in range(0,iEnd){
+                strReturnValue = strReturnValue + arrCameraData[index] + " "
+            }
+            strReturnValue = strReturnValue + arrCameraData[iEnd]
+        }
+        else if(iBegin != Nil && iEnd == Nil){
+            for index in range(iBegin,iAryLength-1){
+                strReturnValue = strReturnValue + arrCameraData[index] + " "
+            }
+            strReturnValue = strReturnValue + arrCameraData[iAryLength-1]
+        }
+        else if(iBegin == iEnd){
+            strReturnValue = strReturnValue + arrCameraData[iBegin]
+        }
+        else if(iBegin < iEnd){
+            for index in range(iBegin,iEnd){
+                strReturnValue = strReturnValue + arrCameraData[index] + " "
+            }
+            strReturnValue = strReturnValue + arrCameraData[iEnd]
+        }
+        else{
+            Atlas.Log.error("Invaild index,please check it!")
+            retDict.result = False
+        }
+    }
+    else{
+        retDict.result = False
+    }
+    retDict.output[outputKey] = strReturnValue
+    return retDict
+}
+
+
+def checkLength(parameter)
+{
+    atlasLogInfo("parameter:",parameter)
+
+    strValue     = parameter.input.customKey onError e-> if True{
+        strValue = parameter.input.defaultKey
+    }
+    iValuelength = size(strValue)
+    array = parameter.array onError e-> if True{
+        array = []
+    }
+
+    iAimLength = parameter.length onError e-> if True{
+        iAimLength = 0
+    }
+
+    arrlength = size(array)
+    bResult = True
+
+    if(iAimLength != 0){
+        if (iValuelength == iAimLength){
+            bResult = True
+        }
+        else{
+            bResult = False
+        }
+    }else{
+        for i in range(0,arrlength)
+        {
+            if(iValuelength == array[i]){
+                break
+            }
+
+            if(i == arrlength-1 ){
+                bResult = False
+            }
+        }
+    }
+
+    return _createResponseDict(bResult,{})
+}
+
+def analysisCameraData(dicSetting)
+{
+    atlasLogInfo("parameter:",dicSetting)
+
+    strKey         = dicSetting.type
+    #UI_ShowMessage(dicSetting.input)
+    strSourceValue = dicSetting.input.cameraData
+    #UI_ShowMessage(strSourceValue)
+    strValue       = ""
+
+    retDict = {
+        "result" : True,
+        "output" : {
+            dicSetting.output[0] : ""
+        }
+    }
+
+    if(strKey == "Front"){
+        aryRange   = Strings.range_of_substring(strSourceValue, "Sensor channel 2 detected :")
+        if(aryRange == Nil){
+            Atlas.Log.error("Front NVM Data Missing!")
+            retDict.result = False
+            return retDict
+        }
+
+        iPosition = aryRange[0]
+        iLength   = aryRange[1]
+        strValue  = strSourceValue[iPosition+iLength:]
+        if(Regex.groups(Strings.tolower(strValue),"nvm data (.*?) bytes",8)[0] == Nil){
+            Atlas.Log.error("Front NVM Format Error!")
+            retDict.result = False
+            return retDict
+        }
+
+        iNVMData   = numerify(Regex.groups(Strings.tolower(strValue),"nvm data (.*?) bytes",8)[0])
+        iLength    = lengthOfInt(iNVMData)
+        strHexNVM  = hexStringify(iNVMData,iLength)
+        iStrLength = size(strHexNVM)
+        strTemp    = strHexNVM
+        # Remove the 0 at the begin
+        for index in range(0,iStrLength){
+            strDigit = strHexNVM[index]
+            if(strDigit == "0"){
+                strTemp = strHexNVM[index+1: iStrLength]
+            }
+            else{
+                break
+            }
+        }
+        strHexNVM = "0x"+strTemp+" :" #e.g. "0x880 :"
+        atlasLogInfo("strHexNVM is",strHexNVM)
+        if(Strings.range_of_substring(strValue, strHexNVM) == Nil){
+            Atlas.Log.error("Front NVM Data isn't integrated!")
+            retDict.result = False
+            return retDict
+        }
+
+        aryRangeTemp1  = Strings.range_of_substring(strValue,strHexNVM)
+        iPosition1     = aryRangeTemp1[0]
+        strValue       = strValue[0: iPosition1-1]
+
+        strRangeString = "NVM Data "+stringify(iNVMData)+" bytes :"
+        aryRangeTemp2  = Strings.range_of_substring(strValue,strRangeString)
+        iPosition2     = aryRangeTemp2[0]
+        iLength2       = aryRangeTemp2[1]
+        strValue       = strValue[iPosition2+iLength2:]
+        atlasLogInfo("Capture Value is",strValue)
+    }
+    else if(strKey == "Back"){
+        aryRange = Strings.range_of_substring(strSourceValue, "Sensor channel 0 detected :")
+        if(aryRange == Nil){
+            Atlas.Log.error("Back NVM Data Missing!")
+            retDict.result = False
+            return retDict
+        }
+
+        iPosition = aryRange[0]
+        iLength   = aryRange[1]
+        strValue  = strSourceValue[iPosition+iLength:]
+        if(Regex.groups(Strings.tolower(strValue),"nvm data (.*?) bytes",8)[0] == Nil){
+            Atlas.Log.error("Back NVM Format Error!")
+            retDict.result = False
+            return retDict
+        }
+
+        iNVMData   = numerify(Regex.groups(Strings.tolower(strValue),"nvm data (.*?) bytes",8)[0])
+        iLength    = lengthOfInt(iNVMData)
+        strHexNVM  = hexStringify(iNVMData,iLength)
+        iStrLength = size(strHexNVM)
+        strTemp    = strHexNVM
+        # Remove the 0 at the begin
+        for index in range(0,iStrLength){
+            strDigit = strHexNVM[index]
+            if(strDigit == "0"){
+                strTemp = strHexNVM[index+1: iStrLength]
+            }
+            else{
+                break
+            }
+        }
+        strHexNVM = "0x"+strTemp+" :" #e.g. "0x880 :"
+        atlasLogInfo("strHexNVM is",strHexNVM)
+        if(Strings.range_of_substring(strValue, strHexNVM) == Nil){
+            Atlas.Log.error("Back NVM Data isn't integrated!")
+            atlasLogInfo(formatString("+","ANALYSIS_CAMERA_DATA "+stringify(False)))
+            return False
+        }
+
+        aryRangeTemp1  = Strings.range_of_substring(strValue,strHexNVM)
+        iPosition1     = aryRangeTemp1[0]
+        strValue       = strValue[0: iPosition1-1]
+
+        strRangeString = "NVM Data "+stringify(iNVMData)+" bytes :"
+        aryRangeTemp2  = Strings.range_of_substring(strValue,strRangeString)
+        iPosition2     = aryRangeTemp2[0]
+        iLength2       = aryRangeTemp2[1]
+        strValue       = strValue[iPosition2+iLength2:]
+        atlasLogInfo("Capture Value is",strValue)
+    }
+    else if(strKey == "Juliet"){
+        aryRange = Strings.range_of_substring(strSourceValue, "Sensor channel 3 detected :")
+        if(aryRange == Nil){
+            Atlas.Log.error("Juliet NVM Data Missing!")
+            retDict.result = False
+            return retDict
+        }
+
+        iPosition = aryRange[0]
+        iLength   = aryRange[1]
+        strValue  = strSourceValue[iPosition+iLength:]
+        if(Regex.groups(Strings.tolower(strValue),"nvm data (.*?) bytes",8)[0] == Nil){
+            Atlas.Log.error("Juliet NVM Format Error!")
+            retDict.result = False
+            return retDict
+        }
+
+        iNVMData   = numerify(Regex.groups(Strings.tolower(strValue),"nvm data (.*?) bytes",8)[0])
+        iLength    = lengthOfInt(iNVMData)
+        strHexNVM  = hexStringify(iNVMData,iLength)
+        iStrLength = size(strHexNVM)
+        strTemp    = strHexNVM
+        # Remove the 0 at the begin
+        for index in range(0,iStrLength){
+            strDigit = strHexNVM[index]
+            if(strDigit == "0"){
+                strTemp = strHexNVM[index+1: iStrLength]
+            }
+            else{
+                break
+            }
+        }
+        strHexNVM = "0x"+strTemp+" :" #e.g. "0x880 :"
+        atlasLogInfo("strHexNVM is",strHexNVM)
+        if(Strings.range_of_substring(strValue, strHexNVM) == Nil){
+            Atlas.Log.error("Juliet NVM Data isn't integrated!")
+            retDict.result = False
+            return retDict
+        }
+
+        aryRangeTemp1  = Strings.range_of_substring(strValue,strHexNVM)
+        iPosition1     = aryRangeTemp1[0]
+        strValue       = strValue[0: iPosition1-1]
+
+        strRangeString = "NVM Data "+stringify(iNVMData)+" bytes :"
+        aryRangeTemp2  = Strings.range_of_substring(strValue,strRangeString)
+        iPosition2     = aryRangeTemp2[0]
+        iLength2       = aryRangeTemp2[1]
+        strValue       = strValue[iPosition2+iLength2:]
+        atlasLogInfo("Capture Value is",strValue)
+    }
+    else{
+        Atlas.Log.error("You must point which camera you need!")
+        retDict.result = False
+        return retDict
+    }
+
+    aryData     = dealWithNVMData(strValue)
+    retDict.output[dicSetting.output[0]] = aryData
+    return retDict
+}
+
+def getIagoNVMData(dicSetting)
+{
+    atlasLogInfo("parameter:",dicSetting)
+
+    strSourceValue = dicSetting.input.key
+    atlasLogInfo("strSourceValue:",strSourceValue)
+
+    strSourceValue = String_TrimSpace(strSourceValue)
+
+    aryData     = dealWithNVMData(strSourceValue)
+    retDict = {
+        "result" : True,
+        "output" : {
+            dicSetting.output[0] : aryData
+        }
+    }
+    return retDict
+}
+
+# Function: Catch useful strings from strReturnValue, and set memories for "FCMB"/"BCMB"
+# Parameter: {input:{KEY:KEY}, CAMERAKEY:"FCMB"/"BCMB",output:["FCMB","BCMB"]}
+
+def catchNVMValue(dicSetting){
+    atlasLogInfo("parameter:",dicSetting)
+    bResult = True
+    strCatchedValue = stringify(dicSetting.input.KEY)
+    strCameraKey = stringify(dicSetting.CAMERAKEY)
+    strOutput0 = ""
+    strOutput1 = ""
+    if (strCameraKey == "FCMB"){
+        arrRange = Strings.range_of_substring(strCatchedValue,"Sensor channel 2 detected :")
+        if (arrRange != Nil) && (arrRange[0] + arrRange[1] <= size(strCatchedValue)){
+            iLocation = arrRange[0] + arrRange[1]
+            strCatchedValue = strCatchedValue[iLocation:]
+            # NSInteger iNVMData = [[[szCatchedValue lowercaseString]subByRegex:@"nvm data(.*?)bytes" name:nil error:nil]integerValue];
+            strSub = Regex.groups(Strings.tolower(strCatchedValue),"nvm data (.*?) bytes",8)[0]
+            strSub = Strings.splice(strSub," ","")
+            iNVMData = numerify(strSub)
+            strNVMData = "NVM Data " + stringify(iNVMData) + " bytes :"
+            arrRangeBegin = Strings.range_of_substring(strCatchedValue,strNVMData)
+            atlasLogInfo("fghjk",arrRangeBegin)
+            iLocationEnd = Strings.location_of_substring(strCatchedValue,"0x20 :")
+            if ((arrRangeBegin != Nil) && (iLocationEnd != Nil) && (arrRangeBegin[0] + arrRangeBegin[1] <= size(strCatchedValue))){
+                iLocationBegin = arrRangeBegin[0] + arrRangeBegin[1]
+                strCatchedValue = strCatchedValue[iLocationBegin:iLocationEnd]
+                atlasLogInfo("strCatchedValue is ",strCatchedValue)
+                bRes = combineNVMForQT0(strCatchedValue,0,0)["Status"]
+                bResult = bResult && bRes
+                strCatchedValue = combineNVMForQT0(strCatchedValue,0,0)["ReturnValue"]
+                atlasLogInfo("strFrontCameraTemp is " + strCatchedValue)
+                strOutput0 = strCatchedValue
+                # Globals.g_dicMemoryValues["FCMB"] = strCatchedValue
+            }else{
+                atlasLogInfo("NVM format error1")
+                strCatchedValue = "NVM format Error"
+                bResult = False
+                # return False
+            }
+        }else{
+            atlasLogInfo("NVM format error2")
+            strCatchedValue = "NVM format Error"
+            bResult = False
+            # return False
+        }
+    }
+    elsif (strCameraKey == "BCMB"){
+        arrRange = Strings.range_of_substring(strCatchedValue,"Sensor channel 0 detected :")
+
+        if (arrRange != Nil)&& (arrRange[0] + arrRange[1] <= size(strCatchedValue)){
+            iLocation = arrRange[0] + arrRange[1]
+            strCatchedValue = strCatchedValue[iLocation:]
+            iLocationBegin = Strings.location_of_substring(strCatchedValue,"0x0 :")
+            iLocationEnd = Strings.location_of_substring(strCatchedValue,"0x18 :")
+            if ((iLocationBegin != Nil) && (iLocationBegin <= size(strCatchedValue))) && ((iLocationEnd != Nil)&&(iLocationEnd <= size(strCatchedValue))){
+                strCatchedValue = strCatchedValue[iLocationBegin:iLocationEnd]
+                bRes = combineNVMForQT0(strCatchedValue,2,7)["Status"]
+                bResult = bResult && bRes
+                strCatchedValue = combineNVMForQT0(strCatchedValue,0,0)["ReturnValue"]
+                atlasLogInfo("strBackCameraTemp is " + strCatchedValue)
+                strOutput0 = strCatchedValue
+                # Globals.g_dicMemoryValues["BCMB"] = strCatchedValue
+            }else{
+                atlasLogInfo("NVM format error11")
+                strCatchedValue = "NVM format Error"
+                bResult = False
+                # return False
+            }
+        }else{
+            atlasLogInfo("NVM format error22")
+            strCatchedValue = "NVM format Error"
+            bResult = False
+            # return False
+        }
+    }else{
+        atlasLogInfo("Get the wrong key!")
+        bResult = False
+        # return False
+    }
+    retDict = {
+        "result" : bResult,
+        "output" : {
+            dicSetting.output[0] : strOutput0,
+            # dicSetting.output[1] : strOutput1
+        }
+    }
+    return retDict
+}
+
+
+#para : {input:{inputkey:inputkey},catchRegex:catchRegex,seperate:seperate,output:["Displacement_Avg"]}
+# =>    {input==>用来传入待处理数据}
+# =>    {input:{fixedKey(sub function 中会调用的key名):realKey(从全局变量中取出对应的value与前面的fixedKey组成键值对传入作为参数)}}
+# =>    {output:["数组","将会在return时将回值与数组中item组成键值对返回"}
+# =>    {otherKey（随便取名）:"任意你需要的补充的key"}
+def cameraDisplacementData(dicSetting)
+{
+    atlasLogInfo("parameter:",dicSetting)
+    strReturnValue = ""
+    strInput =  dicSetting.input.inputkey
+    strRegex        =   dicSetting.catchRegex
+    # strSaveKey      =   dicSetting.input.saveKey
+    strSeperate     =   dicSetting.seperate
+    outPutKey      =   dicSetting.output[0]
+    retDict = {
+      "result": True,
+      "output": { outPutKey : ""}
+    }
+    #If the setting dictionary has no parameters, post a alert panel.
+    if (strRegex == Nil || strRegex == ""
+        || strSeperate == Nil || strSeperate == "")
+    {
+        # Atlas.call_app("show-form", { "type" : "message", "message" : "Camera_Displacement_Data:RETURN_VALUE:有参数为空。(Some params are null!)"})
+        Atlas.Log.error("Camera_Displacement_Data:RETURN_VALUE:有参数为空。")
+        atlasLogInfo("ReturnValue = Nil")
+        retDict.result = False
+        return retDict
+    }
+    #Input string and output string
+    arrInput    =   Strings.tokenize(strInput, strSeperate)
+    atlasLogInfo(arrInput)
+
+    iIndex = 0
+    for i in range(0,size(arrInput))
+    {
+        strTemp     =   arrInput[i]
+        strSub      =   Regex.groups(strTemp,strRegex,8) onError e -> strSub = Nil
+
+        intArrSize=size(strSub)
+        atlasLogInfo("size",intArrSize)
+        if((strSub != Nil) && (intArrSize !=0))
+        {
+            # UI_ShowMessage("BNB")
+            iIndex = iIndex + 1
+            retDict.output = retDict.output + {outPutKey + "_" + stringify(iIndex) : String_TrimSpace(strSub[0])}
+            strReturnValue  = strReturnValue  + stringify({outPutKey + "_" + stringify(iIndex) : String_TrimSpace(strSub[0])})
+        }
+    }
+    atlasLogInfo("ReturnValue = ",strReturnValue)
+    atlasLogInfo("stored keys ",retDict.output)
+    return retDict
+}
+
+
+# Function: For Rosaline_Interposer_Test handle fixture output
+# Return:  Boole Value: True/False
+# Parameter:
+#   dicSetting:    Dictionary
+#       KEY    -> String, memory name of string
+def maxValueForRosalineFixtureIROutput(dicSetting){
+    atlasLogInfo("parameter:",dicSetting)
+    bResult = True
+
+    strValue = dicSetting.input.customKey onError e ->if True{
+        Atlas.Log.error("Can not find the value")
+    }
+    strResult = ""
+    if(strValue != Nil and strValue != ""){
+        arrValueTemp = Strings.tokenize(strValue,"\n")
+        arrToRet = []
+        for i in range (0,size(arrValueTemp))
+        {
+            strSingleValueTemp = String_TrimSpace(stringify(arrValueTemp[i]))
+            if (not isNil(Regex.matches(strSingleValueTemp,"^(\\-*\\d+\\.*\\d*)$",8)) and 0<size(Regex.matches(strSingleValueTemp,"^(\\-*\\d+\\.*\\d*)$",8)))
+            {
+                arrToRet = arrToRet::numerify(strSingleValueTemp) onError-> atlasLogInfo(formatString(">",strSingleValueTemp+" is not number, can't be numerify."))
+            }
+            elsif(strSingleValueTemp == ""){
+                atlasLogInfo(formatString(">","POST_MAX_VALUE_KEY "+strSingleValueTemp+" is '', ignore this value!"))
+            }
+            else{
+                atlasLogInfo(formatString(">","'"+strSingleValueTemp+"' is not number, please double check return value!"+ stringify(False)))
+                atlasLogInfo(formatString("+","MAX_VALUE_FOR_ROSALINE_FIXTURE_IR_OUTPUT "+stringify(False)))
+                retDict = {
+                    "result" : False,
+                    "output" : {
+                        dicSetting.output[0] : strResult
+                    }
+                }
+                return retDict
+            }
+        }
+        atlasLogInfo(formatString("+","MAX_VALUE_FOR_ROSALINE_FIXTURE_IR_OUTPUT "+stringify(arrToRet)))
+
+        iMaxTemp = arrToRet[0]
+        for i in range(1, size(arrToRet))
+        {
+            if (iMaxTemp <= arrToRet[i]){
+                iMaxTemp = arrToRet[i]
+            }
+        }
+        strResult =stringify(iMaxTemp)
+        retDict = {
+            "result" : True,
+            "output" : {
+                dicSetting.output[0] : strResult
+                }
+            }
+        return retDict
+    }else{
+        retDict = {
+            "result" : True,
+            "output" : {
+                dicSetting.output[0] : strResult
+                }
+            }
+        return retDict
+    }
+}
+
+def calculateRxCL(dicSetting)
+{
+    atlasLogInfo('try to do calculateRxCL function')
+    rawData = dicSetting.input.customKey onError e-> Atlas.Log.error('Lacking ')
+    strRxCL = Func_GetRxCLSyscfgValue(rawData)
+    atlasLogInfo("ReturnValue = ",strRxCL)
+      retDict = {
+        "result" : True,
+        "output" : {
+            dicSetting.output[0] : strRxCL
+        }
+    }
+
+    return retDict
+}
+
+def createFrontNVMData_N84(parameter)
+{
+  str_RawData = parameter.input.customKey onError e -> if True {
+    str_RawData = parameter.input.defaultKey    
+  }
+
+  map_Result = {}
+  str_FrontRes = String_SubStringByPreAndPost(str_RawData, "", "0x5B8 :")
+    
+  # =============  VGA_NVM Data ===============
+  # ======= 0x200 ------ 0x208
+  # 0x200
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 : ", "0x208 :", 1)
+  map_Result["NC_VGA_NVM Version"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+  # int_Data = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+  # map_Result["NC_VGA_NVM Version"] = "0x" + Convert_NumberToHexString(int_Data)
+  # map_Result["NC_VGA_NVM Version"] = int_Data
+  map_Result["NC_VGA_NVM Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+    # 0x201
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 : ", "0x208 :", 2)
+  map_Result["NC_VGA_Camera Project"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+    # 0x202
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 :", "0x208 :", 3)
+  map_Result["NC_VGA_Project Version"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+    # 0x203
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 :", "0x208 :", 4)
+  map_Result["NC_VGA_Integrator"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_VGA_Plant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+    # 0x204
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 :", "0x208 :", 5)
+  map_Result["NC_VGA_Camera Build"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+    # 0x205
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 :", "0x208 :", 6)
+  map_Result["NC_VGA_Config Number"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+    # 0x206
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 :", "0x208 :", 7)
+  map_Result["NC_VGA_IRCF Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_IRCF Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_IRCF Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+    # 0x207
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 :", "0x208 :", 8)
+  map_Result["NC_VGA_Substrate Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Substrate Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Substrate Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  
+  #  =======  0x208 ------ 0x210
+  # 0x208
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x208 :", "0x210 :", 1)
+  map_Result["NC_VGA_Sensor Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Sensor Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Sensor Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x20A
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x208 :", "0x210 :", 3)
+  map_Result["NC_VGA_Lens Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Lens Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Lens Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x20E
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x208 :", "0x210 :", 7)
+  map_Result["NC_VGA_Flex Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_VGA_Flex Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  # 0x20F
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x208 :", "0x210 :", 8)
+  map_Result["NC_VGA_Stiffener Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_VGA_Stiffener Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  #  =======  0x218 ------- 0x220
+  # 0x21F
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x218 :", "0x220 :", 8)
+  map_Result["NC_VGA_Process DOE Code"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+ 
+  # 0x220
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x220 :", "0x228 :", 1)
+  map_Result["NC_VGA_Test Software Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+ 
+  # ======  VGA Light Source 1 A R/G Data ====
+  # 0x247 0x248
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x240 :", "0x248 :", 8)
+  str_Tmp = Func_GetDataForMatrix(str_FrontRes, "0x248 :", "0x250 :", 1)
+  int_Data = Convert_HexStringToNumberByBits(str_Rlt, 0,3)
+  map_Result["VGA_LightSource1_A_R/G"] = int_Data * 256 + Convert_HexStringToNumber(str_Tmp)
+
+  # ======  VGA Light Source 1 A B/G Data ====
+  # 0x249 0x24A
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x248 :", "0x250 :", 2)
+  str_Tmp = Func_GetDataForMatrix(str_FrontRes, "0x248 :", "0x250 :", 3)
+  int_Data = Convert_HexStringToNumberByBits(str_Rlt, 0,3)
+  map_Result["VGA_LightSource1_A_B/G"] = int_Data * 256 + Convert_HexStringToNumber(str_Tmp)
+
+  # ======  VGA Light Source 1 D50 R/G Data ====
+  # 0x24B 0x24C
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x248 :", "0x250 :", 4)
+  str_Tmp = Func_GetDataForMatrix(str_FrontRes, "0x248 :", "0x250 :", 5)
+  int_Data = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+  map_Result["VGA_LightSource1_D50_R/G"] = int_Data * 256 + Convert_HexStringToNumber(str_Tmp)
+
+  # ======  VGA Light Source 1 D50 B/G Data ====
+  # 0x24D 0x24E
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x248 :", "0x250 :", 6)
+  str_Tmp = Func_GetDataForMatrix(str_FrontRes, "0x248 :", "0x250 :", 7)
+  int_Data = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+  map_Result["VGA_LightSource1_D50_B/G"] = int_Data * 256 + Convert_HexStringToNumber(str_Tmp)
+
+  # 0x23F
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x238 :", "0x240 :", 8)
+  map_Result["General_Info_Checksum"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # 0x24F
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x248 :", "0x250 :", 8)
+  map_Result["Color_Cal_1_Checksum"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # 0x25F
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x258 :", "0x260 :", 8)
+  map_Result["Color_Cal_2_Checksum"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # 0x4F7
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x4F0 :", "0x4F8 :", 8)
+  map_Result["Color_Shading_Checksum"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # 0x5AB
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x5A8 :", "0x5B0 :", 4)
+  map_Result["Component_machine_info_Checksum"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  #0x200 ~ 0x239(512~569)
+  ary_Data = getNVMDataByOffset(str_FrontRes,"0x200 :","0x240 :",0,58)
+  map_Result["General_Info_Checksum_calculate"]  = cameraCheckSum(ary_Data)
+
+  #0x247 ~ 0x24E(583~590)
+  ary_Data = getNVMDataByOffset(str_FrontRes,"0x240 :","0x250 :",7,8)
+  map_Result["Color_Cal_1_Checksum_calculate"]  = cameraCheckSum(ary_Data)
+
+  #0x251 ~ 0x258(593~600)
+  ary_Data = getNVMDataByOffset(str_FrontRes,"0x250 :","0x260 :",1,8)
+  map_Result["Color_Cal_2_Checksum_calculate"]  = cameraCheckSum(ary_Data)
+
+  #0x260 ~ 0x4F6(608~1270)
+  ary_Data = getNVMDataByOffset(str_FrontRes,"0x260 :","0x4F8 :",0,663)
+  map_Result["Color_Shading_Checksum_calculate"]  = cameraCheckSum(ary_Data)
+
+  #0x546  ~ 0x5AA(1350~1450)
+  ary_Data = getNVMDataByOffset(str_FrontRes,"0x540 :","0x5B0 :",6,101)
+  map_Result["Component_machine_info_Checksum_calculate"]  = cameraCheckSum(ary_Data)
+
+
+  # get the FCMB of front camera 0x00-0x3F Bytes
+  # FCMB is composed of the Bytes 0x00 to 0x3F inclusive of the NVM, based on D33 P1 ERS
+  str_Tmp = ""
+  str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x0 :", "0x8 :")
+  str_Tmp = str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x8 :", "0x10 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x10 :", "0x18 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x18 :", "0x20 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  if size(str_Tmp) == 64
+  {
+    map_Result["FCMB"] = str_Tmp
+  }
+
+  return _createResponseDict(True,map_Result)
+
+}
+
+def createBackNVMData_N84(parameter)
+{
+  str_RawData = parameter.input.customKey onError e -> if True {
+    str_RawData = parameter.input.defaultKey    
+  }
+
+  map_Result = {}
+  str_Back1Res = String_SubStringByPreAndPost(str_RawData, "bytes :", "0x48 :")
+    
+  # =============  NC_NVM Data =============
+  # ======= 0x0 ------ 0x8
+  # 0x0
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res,"0x0 :", "0x8 :", 1)
+  map_Result["NC_NVM Flag"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res,"0x0 :", "0x8 :", 2)
+  map_Result["NC_NVM Type"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res,"0x0 :", "0x8 :", 3)
+  map_Result["NC_NVM Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # ======= 0x20 ------ 0x28
+  # 0x22
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 3)
+  map_Result["NC_Camera Project"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # 0x23
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 4)
+  map_Result["NC_Project Version"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # 0x24
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 5)
+  map_Result["NC_Integrator"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Plant Code"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  # 0x25
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 6)
+  map_Result["NC_Camera Build"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # 0x26
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 7)
+  map_Result["NC_Config Number"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # ======= 0x30 ------ 0x38
+  # 0x32
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 3)
+  map_Result["NC_IRCF Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_IRCF Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_IRCF Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  
+  # 0x33
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 4)
+  map_Result["NC_Substrate Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Substrate Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Substrate Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x34
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 5)
+  map_Result["NC_Sensor Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Sensor Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Sensor Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x35
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 6)
+  map_Result["NC_Actuator Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Actuator Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Actuator Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x36
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 7)
+  map_Result["NC_Lens Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Lens Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Lens Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x37
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 8)
+  map_Result["NC_AF Driver Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_AF Driver Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_AF Driver Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1) 
+
+
+  # ======= 0x38 ------ 0x40
+  # 0x38
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 1)
+  map_Result["NC_Sphere Sensor Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Sphere Sensor Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Sphere Sensor Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x39
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 2)
+  map_Result["NC_APS Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_APS Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_APS Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+    
+  # 0x3A
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 3)
+  map_Result["NC_Flex Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Flex Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+   
+  # 0x3B
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 4)
+  map_Result["NC_Stiffener Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Stiffener Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  # 0x3C
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :","0x40 :", 5)
+  map_Result["NC_Trim Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Trim Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+
+
+
+  # get the BCMB of front camera 0-17Bytes
+  str_Tmp = ""
+  str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x0 :", "0x8 :")
+  str_Tmp = str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x8 :", "0x10 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x10 :", "0x18 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  # str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x18 :", "0x20 :")
+  # str_Tmp = str_Tmp + str_Rlt
+
+  if size(str_Tmp) == 48
+  {
+    map_Result["BCMB"] = str_Tmp
+  }
+
+  return _createResponseDict(True,map_Result)
+}
+
+def createJulietNVMData_N84(parameter)
+{
+  str_RawData = parameter.input.customKey onError e -> if True {
+    str_RawData = parameter.input.defaultKey    
+  }
+
+  map_Result = {}
+  str_FrontRes = String_SubStringByPreAndPost(str_RawData, "","0x400 :")
+  # =============  VGA_NVM Data ===============
+  # 0x19C
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x198 : ", "0x1A0 :", 5) 
+  int_Data = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+  map_Result["NC_VGA_NVM Version"] =int_Data
+  map_Result["NC_VGA_NVM Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+
+  # 0x19D
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x198 : ", "0x1A0 :", 6)
+  map_Result["NC_VGA_Camera Project"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # 0x19E
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x198 :", "0x1A0 :", 7)
+  map_Result["NC_VGA_Project Version"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    # 0x19F
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x198 :", "0x1A0 :", 8)
+  map_Result["NC_VGA_Integrator"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_VGA_Plant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+    # 0x1A0
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A0 :", "0x1A8 :", 1)
+  map_Result["NC_VGA_Camera Build"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    # 0x1A1
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A0 :", "0x1A8 :", 2)
+  map_Result["NC_VGA_Config Number"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    # 0x1A2
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A0 :", "0x1A8 :", 3)
+  map_Result["NC_VGA_Filter Vendor"]  = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Filter Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Filter Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+    # 0x1A3
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A0 :", "0x1A8 :", 4)
+  map_Result["NC_VGA_Substrate Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Substrate Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Substrate Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x1A4
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A0 :", "0x1A8 :", 5)
+  map_Result["NC_VGA_Sensor Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Sensor Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Sensor Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x1A6
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A0 :", "0x1A8 :", 7)
+  map_Result["NC_VGA_Lens Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Lens Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Lens Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x1AA
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A8 :", "0x1B0 :", 3)
+  map_Result["NC_VGA_Flex Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_VGA_Flex Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  # 0x1AB
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A8 :", "0x1B0 :", 4)
+  map_Result["NC_VGA_Stiffener Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_VGA_Stiffener Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  # 0x1BB
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1B8 :", "0x1C0 :", 4)
+  map_Result["NC_VGA_Process DOE Code"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # 0x1BC
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1B8 :", "0x1C0 :", 5)
+  map_Result["NC_VGA_Test Software Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # 0x1C3
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C0 :", "0x1C8 :", 4)
+  map_Result["NC_VGA_Lens Shading Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    # 0x1CC
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C8 :", "0x1D0 :", 5)
+  map_Result["Integrator_NVM_Checksum"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    #0x236
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x230 :", "0x238 :", 7)
+  map_Result["Lens_Shading_Checksum"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    #0x3FF
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x3F8 :", "", 8)
+  map_Result["ASP_Gain_Cal_Checksum"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  #0x19C ~ 0x1CB
+  ary_Data = getNVMDataByOffset(str_FrontRes,"0x198 :","0x1D0 :",4,48)
+  map_Result["Integrator_NVM_Checksum_calculate"]  = cameraCheckSum(ary_Data)
+
+  #0x1D3 ~ 0x235
+  ary_Data = getNVMDataByOffset(str_FrontRes,"0x1D0 :","0x238 :",3,99)
+  map_Result["Lens_Shading_Checksum_calculate"]  = cameraCheckSum(ary_Data)
+
+    #0x237 ~ 0x3FE
+  ary_Data = getNVMDataByOffset(str_FrontRes,"0x230 :","",7,456)
+  map_Result["ASP_Gain_Cal_Checksum_calculate"]  = cameraCheckSum(ary_Data)
+
+  return _createResponseDict(True,map_Result)
+}
+
+def getNVMDataByOffset(str_RawData, str_Prefix,str_Postfix, offset, length)
+{
+    substring = String_SubStringByPreAndPost(str_RawData, str_Prefix, str_Postfix)
+    arrValue=[]
+    arrRows=Strings.tokenize(substring, '\n')
+
+    for row in arrRows{
+        strData = Strings.tokenize(row,':')[-1]
+        arrCells = Strings.tokenize(strData,' ')
+        for strCell in arrCells[-8:]{
+            if (Strings.location_of_substring(strCell, ":") != Nil or Strings.isspace(strCell)){
+                continue
+            }
+            strCell = Strings.splice(strCell, "0x", "")
+            strCell = Strings.splice(strCell, " ", "")
+            if(size(strCell)< 2){
+                strCell = "0" + strCell
+            }
+            arrValue = arrValue::strCell
+        }
+    }
+    if offset+length > size(arrValue)-1{
+        return arrValue
+    }
+    else{
+        return arrValue[offset : offset+length]
+    }
+}
+
+def cameraCheckSum(arr_RawData){
+    str_checkSum = ""
+    if(arr_RawData != Nil)
+    {
+        iSum = 0
+        for strValue in arr_RawData{
+            iValue = numerify('0x'+strValue)
+            iSum = iSum+iValue
+        }
+        numSum = (256-Bitops.bitAnd(iSum,0xFF))
+        iChecksum = Bitops.bitAnd(numSum,0xFF)
+        str_checkSum = stringify(iChecksum)
+    }
+    else{
+        Atlas.Log.error("arr_RawData is Nil,please check it!")
+    }
+    return str_checkSum
+}
+
+#======================================================================================#
+def createFrontNVMData(parameter)
+{
+  str_RawData = parameter.input.customKey onError e -> if True {
+    str_RawData = parameter.input.defaultKey    
+  }
+
+  map_Result = {}
+  str_FrontRes = String_SubStringByPreAndPost(str_RawData, "", "0x258 :")
+    
+  # =============  VGA_NVM Data ===============
+  # ======= 0x200 ------ 0x208
+  # 0x200
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 : ", "0x208 :", 1)
+  map_Result["NC_VGA_NVM Version"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+  # int_Data = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+  # map_Result["NC_VGA_NVM Version"] = "0x" + Convert_NumberToHexString(int_Data)
+  # map_Result["NC_VGA_NVM Version"] = int_Data
+  map_Result["NC_VGA_NVM Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+    # 0x201
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 : ", "0x208 :", 2)
+  map_Result["NC_VGA_Camera Project"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+    # 0x202
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 :", "0x208 :", 3)
+  map_Result["NC_VGA_Project Version"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+    # 0x203
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 :", "0x208 :", 4)
+  map_Result["NC_VGA_Integrator"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_VGA_Plant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+    # 0x204
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 :", "0x208 :", 5)
+  map_Result["NC_VGA_Camera Build"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+    # 0x205
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 :", "0x208 :", 6)
+  map_Result["NC_VGA_Config Number"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+    # 0x206
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 :", "0x208 :", 7)
+  map_Result["NC_VGA_IRCF Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_IRCF Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_IRCF Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+    # 0x207
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 :", "0x208 :", 8)
+  map_Result["NC_VGA_Substrate Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Substrate Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Substrate Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  
+  #  =======  0x208 ------ 0x210
+  # 0x208
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x208 :", "0x210 :", 1)
+  map_Result["NC_VGA_Sensor Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Sensor Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Sensor Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+# 0x209
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x208 :", "0x210 :", 2)
+  map_Result["NC_VGA_Actuator Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Actuator Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Actuator Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x20A
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x208 :", "0x210 :", 3)
+  map_Result["NC_VGA_Lens Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Lens Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Lens Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x20B
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x208 :", "0x210 :", 4)
+  map_Result["NC_VGA_AF_Driver Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_AF_Driver Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_AF_Driver Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x20E
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x208 :", "0x210 :", 7)
+  map_Result["NC_VGA_Flex Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_VGA_Flex Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  # 0x20F
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x208 :", "0x210 :", 8)
+  map_Result["NC_VGA_Stiffener Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_VGA_Stiffener Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  #  =======  0x210 ------- 0x218
+  # 0x211
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x210 :", "0x218 :", 2)
+  map_Result["NC_VGA_Lens_Holder Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Lens_Holder Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Lens_Holder Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  #  =======  0x228 ------- 0x230
+  # 0x229
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x228 :", "0x230 :", 2)
+  map_Result["NC_VGA_Fabry Bin"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  #  =======  0x230 ------- 0x238
+  # 0x231
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x230 :", "0x238 :", 2)
+  map_Result["NC_VGA_Process DOE Code"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # int_Data = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # map_Result["NC_VGA_Process DOE Code"] = "0x" + Convert_NumberToHexString(int_Data)
+  # 0x232
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x230 :", "0x238 :", 3)
+  map_Result["NC_VGA_Test Software Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+ 
+  # ======  VGA Light Source 1 A R/G Data ====
+  # 0x247 0x248
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x240 :", "0x248 :", 8)
+  str_Tmp = Func_GetDataForMatrix(str_FrontRes, "0x248 :", "0x250 :", 1)
+  int_Data = Convert_HexStringToNumberByBits(str_Rlt, 0,3)
+  map_Result["VGA_LightSource1_A_R/G"] = int_Data * 256 + Convert_HexStringToNumber(str_Tmp)
+
+  # ======  VGA Light Source 1 A B/G Data ====
+  # 0x249 0x24A
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x248 :", "0x250 :", 2)
+  str_Tmp = Func_GetDataForMatrix(str_FrontRes, "0x248 :", "0x250 :", 3)
+  int_Data = Convert_HexStringToNumberByBits(str_Rlt, 0,3)
+  map_Result["VGA_LightSource1_A_B/G"] = int_Data * 256 + Convert_HexStringToNumber(str_Tmp)
+
+  # ======  VGA Light Source 1 D50 R/G Data ====
+  # 0x24B 0x24C
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x248 :", "0x250 :", 4)
+  str_Tmp = Func_GetDataForMatrix(str_FrontRes, "0x248 :", "0x250 :", 5)
+  int_Data = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+  map_Result["VGA_LightSource1_D50_R/G"] = int_Data * 256 + Convert_HexStringToNumber(str_Tmp)
+
+  # ======  VGA Light Source 1 D50 B/G Data ====
+  # 0x24D 0x24E
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x248 :", "0x250 :", 6)
+  str_Tmp = Func_GetDataForMatrix(str_FrontRes, "0x248 :", "0x250 :", 7)
+  int_Data = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+  map_Result["VGA_LightSource1_D50_B/G"] = int_Data * 256 + Convert_HexStringToNumber(str_Tmp)
+
+  # get the FCMB of front camera 0x00-0x3F Bytes
+  # FCMB is composed of the Bytes 0x00 to 0x3F inclusive of the NVM, based on D33 P1 ERS
+  str_Tmp = ""
+  str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x200 :", "0x208 :")
+  str_Tmp = str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x208 :", "0x210 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x210 :", "0x218 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x218 :", "0x220 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  # str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x220 :", "0x228 :")
+  # str_Tmp = str_Rlt
+
+  # str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x228 :", "0x230 :")
+  # str_Tmp = str_Tmp + str_Rlt
+
+  # str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x230 :", "0x238 :")
+  # str_Tmp = str_Tmp + str_Rlt
+
+  # str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x238 :", "0x240 :")
+  # str_Tmp = str_Tmp + str_Rlt
+
+  if size(str_Tmp) == 64
+  {
+    map_Result["FCMB"] = str_Tmp
+  }
+
+  return _createResponseDict(True,map_Result)
+
+}
+
+# Julit Camera NVM check map
+def createJulietNVMData(parameter)
+{
+  str_RawData = parameter.input.customKey onError e -> if True {
+    str_RawData = parameter.input.defaultKey    
+  }
+
+  map_Result = {}
+  str_FrontRes = String_SubStringByPreAndPost(str_RawData, "","0x200 :")
+    
+  # =============  VGA_NVM Data ===============
+  # 0x19C
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x198 : ", "0x1A0 :", 5) 
+  int_Data = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+  #  map_Result["NC_VGA_NVM Version"] = "0x" + Convert_NumberToHexString(int_Data)
+  map_Result["NC_VGA_NVM Version"] =int_Data
+
+  map_Result["NC_VGA_NVM Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+    # 0x19D
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x198 : ", "0x1A0 :", 6)
+  map_Result["NC_VGA_Camera Project"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+    # 0x19E
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x198 :", "0x1A0 :", 7)
+  map_Result["NC_VGA_Project Version"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+    # 0x19F
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x198 :", "0x1A0 :", 8)
+  map_Result["NC_VGA_Integrator"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_VGA_Plant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+    # 0x1A0
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A0 :", "0x1A8 :", 1)
+  map_Result["NC_VGA_Camera Build"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+    # 0x1A1
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A0 :", "0x1A8 :", 2)
+  map_Result["NC_VGA_Config Number"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+    # 0x1A2
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A0 :", "0x1A8 :", 3)
+  map_Result["NC_VGA_Filter Vendor"]  = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Filter Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Filter Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+    # 0x1A3
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A0 :", "0x1A8 :", 4)
+  map_Result["NC_VGA_Substrate Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Substrate Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Substrate Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  # 0x1A4
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A0 :", "0x1A8 :", 5)
+  map_Result["NC_VGA_Sensor Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Sensor Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Sensor Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  # 0x1A6
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A0 :", "0x1A8 :", 7)
+  map_Result["NC_VGA_Lens Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Lens Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Lens Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  # 0x1AA
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A8 :", "0x1B0 :", 3)
+  map_Result["NC_VGA_Flex Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_VGA_Flex Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+  # 0x1AB
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A8 :", "0x1B0 :", 4)
+  map_Result["NC_VGA_Stiffener Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_VGA_Stiffener Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+  # 0x1BA
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1B8 :", "0x1C0 :", 3)
+  map_Result["NC_VGA_Process Control Plan Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1BB
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1B8 :", "0x1C0 :", 4)
+  map_Result["NC_VGA_Process DOE Code"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # 0x1BC
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1B8 :", "0x1C0 :", 5)
+  map_Result["NC_VGA_Test Software Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1BD
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1B8 :", "0x1C0 :", 6)
+  map_Result["NC_VGA_Waiver Field"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1BE
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1B8 :", "0x1C0 :", 7)
+  map_Result["NC_VGA_Machine ID 1"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1BF
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1B8 :", "0x1C0 :", 8)
+  map_Result["NC_VGA_Machine ID 2"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1C0
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C0 :", "0x1C8 :", 1)
+  map_Result["NC_VGA_Machine ID 3"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1C1
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C0 :", "0x1C8 :", 2)
+  map_Result["NC_VGA_Machine ID 4"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1C2
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C0 :", "0x1C8 :", 3)
+  map_Result["NC_VGA_Machine ID 5"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1C3
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C0 :", "0x1C8 :", 4)
+  map_Result["NC_VGA_Lens Shading Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1CA
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C8 :", "0x1D0 :", 3)
+  map_Result["NC_VGA_Integrator NVM Checksum"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1CB
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C8 :", "0x1D0 :", 4)
+  map_Result["NC_VGA_RI Center Offset X"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1CC
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C8 :", "0x1D0 :", 5)
+  map_Result["NC_VGA_RI Center Offset Y"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1CD
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C8 :", "0x1D0 :", 6)
+  map_Result["NC_VGA_Distortion Center Offset X"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1CE
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C8 :", "0x1D0 :", 7)
+  map_Result["NC_VGA_Distortion Center Offset Y"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1CF
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C8 :", "0x1D0 :", 8)
+  map_Result["NC_VGA_EFL MSB"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1D0
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1D0 :", "0x1D8 :", 1)
+  map_Result["NC_VGA_EFL LSB"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1D1
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1D0 :", "0x1D8 :", 2)
+  map_Result["NC_VGA_Sensor Cal Temp"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1D2
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1D0 :", "0x1D8 :", 3)
+  map_Result["NC_VGA_Lens Cal Temp"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # get the FCMB of front camera 0-23Bytes
+  str_Tmp = ""
+  str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x0 :", "0x8 :")
+  str_Tmp = str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x8 :", "0x10 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x10 :", "0x18 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x18 :", "0x20 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  if size(str_Tmp) == 64
+  {
+    map_Result["FCMB"] = str_Tmp
+  }
+
+  return _createResponseDict(True,map_Result)
+
+}
+
+def createBack1NVMData(parameter)
+{
+  str_RawData = parameter.input.customKey onError e -> if True {
+    str_RawData = parameter.input.defaultKey    
+  }
+
+  map_Result = {}
+  str_Back1Res = String_SubStringByPreAndPost(str_RawData, "bytes :","0xFF8 :")
+    
+  # =============  NC_NVM Data =============
+  # ======= 0x0 ------ 0x8
+  # 0x0
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res,"0x0 :", "0x8 :", 1)
+  map_Result["NC_NVM Flag"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res,"0x0 :", "0x8 :", 2)
+  map_Result["NC_NVM Type"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res,"0x0 :", "0x8 :", 3)
+  map_Result["NC_NVM Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 3)
+  map_Result["NC_Camera Project"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 4)
+  map_Result["NC_Project Version"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 5)
+  map_Result["NC_Integrator"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Plant Code"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 6)
+  map_Result["NC_Camera Build"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 7)
+  map_Result["NC_Config Number"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 3)
+  map_Result["NC_IRCF Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_IRCF Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_IRCF Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 4)
+  map_Result["NC_Substrate Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Substrate Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Substrate Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # ======= 0x8 ------ 0x10
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 5)
+  map_Result["NC_Sensor Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Sensor Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Sensor Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 6)
+  map_Result["NC_Actuator Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Actuator Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Actuator Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 7)
+  map_Result["NC_Lens Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Lens Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Lens Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 8)
+  map_Result["NC_AF Driver Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_AF Driver Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_AF Driver Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1) 
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 1)
+  map_Result["NC_Sphere Sensor Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Sphere Sensor Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Sphere Sensor Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 2)
+  map_Result["NC_APS Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_APS Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_APS Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+    
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 3)
+  map_Result["NC_Flex Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Flex Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+   
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 4)
+  map_Result["NC_Stiffener Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Stiffener Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  # ======= 0x10 ------- 0x18
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :","0x40 :", 5)
+  map_Result["NC_Trim Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Trim Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x478 :","0x480 :", 6)
+
+   if size(str_Rlt) != 0
+  {
+
+    map_Result["NC_bracket_vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["NC_bracket_Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["NC_bracket_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  }
+  else 
+  {
+    map_Result["NC_bracket_vendor"] = "Cannot get the value from diags"
+    map_Result["NC_bracket_Revision"] = "Cannot get the value from diags"
+    map_Result["NC_bracket_Variant"] = "Cannot get the value from diags"
+  }
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x458 :","0x460 :", 2)
+  if str_Rlt == "0x24"
+  {
+    str_tmp = "Derkwoo"
+  }
+  else if str_Rlt == "0x64"
+  {
+    str_tmp = "Sunway"
+  }
+  else
+  {
+    str_tmp = "UnKnown Vendor"
+  }
+  map_Result["i90 bracket vendor"] = str_tmp
+
+  # get the BCMB of front camera 0-17Bytes
+  str_Tmp = ""
+  str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x0 :", "0x8 :")
+  str_Tmp = str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x8 :", "0x10 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x10 :", "0x18 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  if size(str_Tmp) == 48
+  {
+    map_Result["BCMB"] = str_Tmp
+  }
+  return _createResponseDict(True,map_Result)
+}
+
+def Func_NCCameraNVM(parameter)
+{
+
+  str_RawData = parameter.input.customKey onError e -> if True {
+    str_RawData = parameter.input.defaultKey    
+  }
+
+  map_Result = {}
+  str_Back1Res = String_SubStringByPreAndPost(str_RawData, "bytes :","Pass")
+    
+  # =============  NC_NVM Data =============
+  # ======= 0x0 ------ 0x8
+  # 0x0
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res,"0x0 :", "0x8 :", 1)
+  map_Result["NC_NVM Flag"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res,"0x0 :", "0x8 :", 2)
+  map_Result["NC_NVM Type"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res,"0x0 :", "0x8 :", 3)
+  map_Result["NC_NVM Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # ======= 0x20 ------ 0x28
+  # 0x22
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 3)
+  map_Result["NC_Camera Project"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # 0x23
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 4)
+  map_Result["NC_Project Version"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # 0x24
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 5)
+  map_Result["NC_Integrator"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Plant Code"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  # 0x25
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 6)
+  map_Result["NC_Camera Build"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # 0x26
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 7)
+  map_Result["NC_Config Number"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # ======= 0x30 ------ 0x38
+  # 0x32
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 3)
+  map_Result["NC_IRCF Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_IRCF Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_IRCF Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  
+  # 0x33
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 4)
+  map_Result["NC_Substrate Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Substrate Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Substrate Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x34
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 5)
+  map_Result["NC_Sensor Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Sensor Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Sensor Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x35
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 6)
+  map_Result["NC_Actuator Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Actuator Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Actuator Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x36
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 7)
+  map_Result["NC_Lens Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Lens Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Lens Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x37
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 8)
+  map_Result["NC_AF Driver Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_AF Driver Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_AF Driver Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1) 
+
+
+  # ======= 0x38 ------ 0x40
+  # 0x38
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 1)
+  map_Result["NC_Sphere Sensor Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Sphere Sensor Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Sphere Sensor Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x39
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 2)
+  map_Result["NC_APS Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_APS Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_APS Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+    
+  # 0x3A
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 3)
+  map_Result["NC_Flex Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Flex Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+   
+  # 0x3B
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 4)
+  map_Result["NC_Stiffener Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Stiffener Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  # 0x3C
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :","0x40 :", 5)
+  map_Result["NC_Trim Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Trim Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+
+
+
+  # get the BCMB of front camera 0-17Bytes
+  str_Tmp = ""
+  str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x0 :", "0x8 :")
+  str_Tmp = str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x8 :", "0x10 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x10 :", "0x18 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  # str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x18 :", "0x20 :")
+  # str_Tmp = str_Tmp + str_Rlt
+
+  if size(str_Tmp) == 48
+  {
+    map_Result["BCMB"] = str_Tmp
+  }
+
+  return _createResponseDict(True,map_Result)
+}
+
+def createBackNVMData(parameter)
+{
+  str_RawData = parameter.input.customKey onError e -> if True {
+    str_RawData = parameter.input.defaultKey    
+  }
+
+  map_Result = {}
+  str_Back1Res = String_SubStringByPreAndPost(str_RawData, "bytes :","Pass")
+    
+  # =============  NC_NVM Data =============
+  # ======= 0x0 ------ 0x8
+  # 0x0
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res,"0x0 :", "0x8 :", 1)
+  map_Result["NC_NVM Flag"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res,"0x0 :", "0x8 :", 2)
+  map_Result["NC_NVM Type"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res,"0x0 :", "0x8 :", 3)
+  map_Result["NC_NVM Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # ======= 0x20 ------ 0x28
+  # 0x22
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 3)
+  map_Result["NC_Camera Project"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # 0x23
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 4)
+  map_Result["NC_Project Version"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # 0x24
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 5)
+  map_Result["NC_Integrator"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Plant Code"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  # 0x25
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 6)
+  map_Result["NC_Camera Build"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # 0x26
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 7)
+  map_Result["NC_Config Number"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # ======= 0x30 ------ 0x38
+  # 0x32
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 3)
+  map_Result["NC_IRCF Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_IRCF Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_IRCF Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  
+  # 0x33
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 4)
+  map_Result["NC_Substrate Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Substrate Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Substrate Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x34
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 5)
+  map_Result["NC_Sensor Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Sensor Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Sensor Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x35
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 6)
+  map_Result["NC_Actuator Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Actuator Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Actuator Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x36
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 7)
+  map_Result["NC_Lens Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Lens Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Lens Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x37
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 8)
+  map_Result["NC_AF Driver Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_AF Driver Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_AF Driver Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1) 
+
+
+  # ======= 0x38 ------ 0x40
+  # 0x38
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 1)
+  map_Result["NC_Sphere Sensor Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Sphere Sensor Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Sphere Sensor Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x39
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 2)
+  map_Result["NC_APS Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_APS Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_APS Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+    
+  # 0x3A
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 3)
+  map_Result["NC_Flex Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Flex Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+   
+  # 0x3B
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 4)
+  map_Result["NC_Stiffener Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Stiffener Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  # 0x3C
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :","0x40 :", 5)
+  map_Result["NC_Trim Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Trim Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+
+
+
+  # get the BCMB of front camera 0-17Bytes
+  str_Tmp = ""
+  str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x0 :", "0x8 :")
+  str_Tmp = str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x8 :", "0x10 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x10 :", "0x18 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  # str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x18 :", "0x20 :")
+  # str_Tmp = str_Tmp + str_Rlt
+
+  if size(str_Tmp) == 48
+  {
+    map_Result["BCMB"] = str_Tmp
+  }
+
+  return _createResponseDict(True,map_Result)
+}
+
+def createRomeoNVMData(parameter)
+{
+
+  str_RawData = parameter.input.customKey onError e -> if True {
+    str_RawData = parameter.input.defaultKey    
+  }
+
+  map_Result = {}
+  str_RomeoRes = String_SubStringByPreAndPost(str_RawData, "bytes :","Pass")
+    
+  # =============  NC_NVM Data =============
+  # ======= 0xB8 ------ 0xC0
+  # 0x0
+  # str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0xB8 :", "0xC0 :", 5)
+  # map_Result["OTP_re-cure"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 1)
+  map_Result["OTP_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 2)
+  map_Result["Project"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+  map_Result["Program_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 3)
+  map_Result["Integrator_Plant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 4)
+  map_Result["Aragon_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["Aragon_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["Aragon_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 5)
+  map_Result["Benvolio_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["Benvolio_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["Benvolio_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  # str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 5)
+  # map_Result["Aragon_Wafer_ID_1"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 6)
+  map_Result["Homer_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["Homer_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["Homer_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  # map_Result["Aragon_Wafer_ID_2"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 7)
+  map_Result["Substrate_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["Substrate_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["Substrate_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  # map_Result["Aragon_Wafer_ID_3"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 8)
+  map_Result["Stone_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["Stone_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["Stone_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  # map_Result["FOL_Test_Station_ID"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes, "0x8 :", "0x10 :", 1)
+  map_Result["Flex_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["Flex_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["Flex_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  # map_Result["Benvolio_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  # map_Result["Benvolio_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  # map_Result["Benvolio_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 2)
+  map_Result["Spider_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["Spider_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["Spider_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  # map_Result["Benvolio_WWD_1"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 3)
+  map_Result["Flea_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["Flea_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["Flea_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  # map_Result["Benvolio_WWD2"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+  # map_Result["Benvolio_SSSS_1"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 4)
+  map_Result["Projector_Build"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # map_Result["Benvolio_SSSS_2"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 5)
+  map_Result["Config_Number"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # map_Result["Benvolio_SSSS_3"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 6)
+  map_Result["DOE_Byte"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # map_Result["Benvolio_SSSS_4"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+  # map_Result["Benvolio_RRCC_1"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 7)
+  map_Result["Traceability_Checksum"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # map_Result["Benvolio_RRCC_2"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 8)
+  # map_Result["Benvolio_AA_Test_Station_ID"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 1)
+  # map_Result["Homer_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  # map_Result["Homer_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  # map_Result["Homer_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 2)
+  # map_Result["Homer_Row"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 3)
+  # map_Result["Homer_Column"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 4)
+  # map_Result["Homer_Wafer_1"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 5)
+  map_Result["FOL_ID_PPPYWW[31:24]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # map_Result["Homer_Wafer_2"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 6)
+  map_Result["FOL_ID_PPPYWW[23:16]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # map_Result["Homer_Week_1"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 7)
+  map_Result["FOL_ID_PPPYWW[15:8]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # map_Result["Homer_Week_2"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 8)
+  map_Result["FOL_ID_PPPYWW[7:0]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # map_Result["Homer_AA_Test_Station_ID"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 1)
+  map_Result["FOL_ID_DSSSS[23:16]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # map_Result["Substrate_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  # map_Result["Substrate_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  # map_Result["Substrate_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 2)
+  map_Result["FOL_ID_DSSSS[15:8]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # map_Result["Stone_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  # map_Result["Stone_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  # map_Result["Stone_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 3)
+  map_Result["FOL_ID_DSSSS[7:0]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # map_Result["Flex_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  # map_Result["Flex_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  # map_Result["Flex_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 4)
+  map_Result["FOL_ID_EEEERX[31:24]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # map_Result["Spider_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  # map_Result["Spider_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  # map_Result["Spider_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 5)
+  map_Result["FOL_ID_EEEERX[23:16]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # map_Result["Projector_Build"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 6)
+  map_Result["FOL_ID_EEEERX[15:8]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # map_Result["Config_Number"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 7)
+  map_Result["FOL_ID_EEEERX[7:0]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # map_Result["Year"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 8)
+  map_Result["SN_Checksum"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 8)
+  # map_Result["Work_Week"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 5)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 1)
+  map_Result["Aragon_Wafer_ID_1"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # map_Result["Day"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  # str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 1)
+  # map_Result["Day"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 2)
+  map_Result["Aragon_Wafer_ID_2"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # map_Result["Sequence_Number[0:7]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 3)
+  map_Result["Aragon_Wafer_ID_3"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # map_Result["Sequence_Number[8:15]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 4)
+  map_Result["Aragon_Wafer_ID_Checksum"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x78 :", "0x80 :", 4)
+  map_Result["Benvolio_WWD1_[11:4]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x78 :", "0x80 :", 5)
+  map_Result["Benvolio_WWD2_[3:0]"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+  map_Result["Benvolio_SSSS_1_[23:19]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x78 :", "0x80 :", 6)
+  map_Result["Benvolio_SSSS_2_[18:11]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x78 :", "0x80 :", 7)
+  map_Result["Benvolio_SSSS_3_[10:4]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x78 :", "0x80 :", 8)
+  map_Result["Benvolio_SSSS_4_[3:0]"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+  map_Result["Benvolio_RRCC_1[11:8]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x80 :", "0x88 :", 1)
+  map_Result["Benvolio_RRCC_2[7:0]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x80 :", "0x88 :", 2)
+  map_Result["Homer_Row"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x80 :", "0x88 :", 3)
+  map_Result["Homer_Column"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x80 :", "0x88 :", 4)
+  map_Result["Homer_Wafer_1"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x80 :", "0x88 :", 5)
+  map_Result["Homer_Wafer_2"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x80 :", "0x88 :", 6)
+  map_Result["Homer_Wafer_3"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x80 :", "0x88 :", 7)
+  map_Result["Homer_Wafer_4"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # map_Result["Sequence_Number[16:23]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 5)
+  # map_Result["Test_Software_Algorithm_Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 6)
+  # map_Result["DoE_Lookup[0:7]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 7)
+  # map_Result["DoE_Lookup[8:15]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # # 0xBC
+  # str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0xB8 :", "0xC0 :", 5)
+  # map_Result["Flea_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  # # 0xBC
+  # str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0xB8 :", "0xC0 :", 5)
+  # map_Result["Flea_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  # # 0xBC
+  # str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0xB8 :", "0xC0 :", 7)
+  # map_Result["Flea_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  return _createResponseDict(True,map_Result)
+}
+
+def createFrontNVMData_D32(parameter)
+{
+  str_RawData = parameter.input.customKey onError e -> if True {
+    str_RawData = parameter.input.defaultKey    
+  }
+
+  map_Result = {}
+  str_FrontRes = String_SubStringByPreAndPost(str_RawData, "", "0x258 :")
+    
+  # =============  VGA_NVM Data ===============
+  # ======= 0x200 ------ 0x208
+  # 0x200
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 : ", "0x208 :", 1)
+  map_Result["NC_VGA_NVM Version"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+  # int_Data = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+  # map_Result["NC_VGA_NVM Version"] = "0x" + Convert_NumberToHexString(int_Data)
+  # map_Result["NC_VGA_NVM Version"] = int_Data
+  map_Result["NC_VGA_NVM Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+    # 0x201
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 : ", "0x208 :", 2)
+  map_Result["NC_VGA_Camera Project"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+    # 0x202
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 :", "0x208 :", 3)
+  map_Result["NC_VGA_Project Version"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+    # 0x203
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 :", "0x208 :", 4)
+  map_Result["NC_VGA_Integrator"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_VGA_Plant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+    # 0x204
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 :", "0x208 :", 5)
+  map_Result["NC_VGA_Camera Build"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+    # 0x205
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 :", "0x208 :", 6)
+  map_Result["NC_VGA_Config Number"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+    # 0x206
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 :", "0x208 :", 7)
+  map_Result["NC_VGA_IRCF Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_IRCF Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_IRCF Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+    # 0x207
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x200 :", "0x208 :", 8)
+  map_Result["NC_VGA_Substrate Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Substrate Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Substrate Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  
+  #  =======  0x208 ------ 0x210
+  # 0x208
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x208 :", "0x210 :", 1)
+  map_Result["NC_VGA_Sensor Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Sensor Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Sensor Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+# 0x209
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x208 :", "0x210 :", 2)
+  map_Result["NC_VGA_Actuator Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Actuator Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Actuator Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x20A
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x208 :", "0x210 :", 3)
+  map_Result["NC_VGA_Lens Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Lens Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Lens Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x20B
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x208 :", "0x210 :", 4)
+  map_Result["NC_VGA_AF_Driver Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_AF_Driver Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_AF_Driver Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x20E
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x208 :", "0x210 :", 7)
+  map_Result["NC_VGA_Flex Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_VGA_Flex Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  # 0x20F
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x208 :", "0x210 :", 8)
+  map_Result["NC_VGA_Stiffener Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_VGA_Stiffener Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  #  =======  0x210 ------- 0x218
+  # 0x211
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x210 :", "0x218 :", 2)
+  map_Result["NC_VGA_Lens_Holder Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Lens_Holder Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Lens_Holder Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  #  =======  0x228 ------- 0x230
+  # 0x229
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x228 :", "0x230 :", 2)
+  map_Result["NC_VGA_Fabry Bin"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  #  =======  0x230 ------- 0x238
+  # 0x231
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x230 :", "0x238 :", 2)
+  map_Result["NC_VGA_Process DOE Code"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # int_Data = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # map_Result["NC_VGA_Process DOE Code"] = "0x" + Convert_NumberToHexString(int_Data)
+  # 0x232
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x230 :", "0x238 :", 3)
+  map_Result["NC_VGA_Test Software Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  
+  # ======  VGA Light Source 1 A R/G Data ====
+  # 0x247 0x248
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x240 :", "0x248 :", 8)
+  str_Tmp = Func_GetDataForMatrix(str_FrontRes, "0x248 :", "0x250 :", 1)
+  int_Data = Convert_HexStringToNumberByBits(str_Rlt, 0,3)
+  map_Result["VGA_LightSource1_A_R/G"] = int_Data * 256 + Convert_HexStringToNumber(str_Tmp)
+
+  # ======  VGA Light Source 1 A B/G Data ====
+  # 0x249 0x24A
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x248 :", "0x250 :", 2)
+  str_Tmp = Func_GetDataForMatrix(str_FrontRes, "0x248 :", "0x250 :", 3)
+  int_Data = Convert_HexStringToNumberByBits(str_Rlt, 0,3)
+  map_Result["VGA_LightSource1_A_B/G"] = int_Data * 256 + Convert_HexStringToNumber(str_Tmp)
+
+  # ======  VGA Light Source 1 D50 R/G Data ====
+  # 0x24B 0x24C
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x248 :", "0x250 :", 4)
+  str_Tmp = Func_GetDataForMatrix(str_FrontRes, "0x248 :", "0x250 :", 5)
+  int_Data = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+  map_Result["VGA_LightSource1_D50_R/G"] = int_Data * 256 + Convert_HexStringToNumber(str_Tmp)
+
+  # ======  VGA Light Source 1 D50 B/G Data ====
+  # 0x24D 0x24E
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x248 :", "0x250 :", 6)
+  str_Tmp = Func_GetDataForMatrix(str_FrontRes, "0x248 :", "0x250 :", 7)
+  int_Data = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+  map_Result["VGA_LightSource1_D50_B/G"] = int_Data * 256 + Convert_HexStringToNumber(str_Tmp)
+
+  # get the FCMB of front camera 0x00-0x3F Bytes
+  # FCMB is composed of the Bytes 0x00 to 0x3F inclusive of the NVM, based on D33 P1 ERS
+  str_Tmp = ""
+  str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x200 :", "0x208 :")
+  str_Tmp = str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x208 :", "0x210 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x210 :", "0x218 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x218 :", "0x220 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  # str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x220 :", "0x228 :")
+  # str_Tmp = str_Rlt
+
+  # str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x228 :", "0x230 :")
+  # str_Tmp = str_Tmp + str_Rlt
+
+  # str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x230 :", "0x238 :")
+  # str_Tmp = str_Tmp + str_Rlt
+
+  # str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x238 :", "0x240 :")
+  # str_Tmp = str_Tmp + str_Rlt
+
+  if size(str_Tmp) == 64
+  {
+    map_Result["FCMB"] = str_Tmp
+  }
+
+  return _createResponseDict(True,map_Result)
+
+}
+
+# Julit Camera NVM check map
+def createJulietNVMData_D32(parameter)
+{
+  str_RawData = parameter.input.customKey onError e -> if True {
+    str_RawData = parameter.input.defaultKey    
+  }
+
+  map_Result = {}
+  str_FrontRes = String_SubStringByPreAndPost(str_RawData, "","0x200 :")
+    
+  # =============  VGA_NVM Data ===============
+  # 0x19C
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x198 : ", "0x1A0 :", 5) 
+  int_Data = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+  #  map_Result["NC_VGA_NVM Version"] = "0x" + Convert_NumberToHexString(int_Data)
+  map_Result["NC_VGA_NVM Version"] =int_Data
+
+  map_Result["NC_VGA_NVM Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+    # 0x19D
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x198 : ", "0x1A0 :", 6)
+  map_Result["NC_VGA_Camera Project"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+    # 0x19E
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x198 :", "0x1A0 :", 7)
+  map_Result["NC_VGA_Project Version"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+    # 0x19F
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x198 :", "0x1A0 :", 8)
+  map_Result["NC_VGA_Integrator"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_VGA_Plant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+    # 0x1A0
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A0 :", "0x1A8 :", 1)
+  map_Result["NC_VGA_Camera Build"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+    # 0x1A1
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A0 :", "0x1A8 :", 2)
+  map_Result["NC_VGA_Config Number"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+    # 0x1A2
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A0 :", "0x1A8 :", 3)
+  map_Result["NC_VGA_Filter Vendor"]  = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Filter Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Filter Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+    # 0x1A3
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A0 :", "0x1A8 :", 4)
+  map_Result["NC_VGA_Substrate Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Substrate Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Substrate Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  # 0x1A4
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A0 :", "0x1A8 :", 5)
+  map_Result["NC_VGA_Sensor Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Sensor Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Sensor Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  # 0x1A6
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A0 :", "0x1A8 :", 7)
+  map_Result["NC_VGA_Lens Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_VGA_Lens Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_VGA_Lens Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  # 0x1AA
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A8 :", "0x1B0 :", 3)
+  map_Result["NC_VGA_Flex Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_VGA_Flex Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+  # 0x1AB
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1A8 :", "0x1B0 :", 4)
+  map_Result["NC_VGA_Stiffener Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_VGA_Stiffener Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+  # 0x1BA
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1B8 :", "0x1C0 :", 3)
+  map_Result["NC_VGA_Process Control Plan Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1BB
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes, "0x1B8 :", "0x1C0 :", 4)
+  map_Result["NC_VGA_Process DOE Code"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # 0x1BC
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1B8 :", "0x1C0 :", 5)
+  map_Result["NC_VGA_Test Software Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1BD
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1B8 :", "0x1C0 :", 6)
+  map_Result["NC_VGA_Waiver Field"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1BE
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1B8 :", "0x1C0 :", 7)
+  map_Result["NC_VGA_Machine ID 1"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1BF
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1B8 :", "0x1C0 :", 8)
+  map_Result["NC_VGA_Machine ID 2"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1C0
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C0 :", "0x1C8 :", 1)
+  map_Result["NC_VGA_Machine ID 3"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1C1
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C0 :", "0x1C8 :", 2)
+  map_Result["NC_VGA_Machine ID 4"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1C2
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C0 :", "0x1C8 :", 3)
+  map_Result["NC_VGA_Machine ID 5"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1C3
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C0 :", "0x1C8 :", 4)
+  map_Result["NC_VGA_Lens Shading Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1CA
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C8 :", "0x1D0 :", 3)
+  map_Result["NC_VGA_Integrator NVM Checksum"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1CB
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C8 :", "0x1D0 :", 4)
+  map_Result["NC_VGA_RI Center Offset X"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1CC
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C8 :", "0x1D0 :", 5)
+  map_Result["NC_VGA_RI Center Offset Y"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1CD
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C8 :", "0x1D0 :", 6)
+  map_Result["NC_VGA_Distortion Center Offset X"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1CE
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C8 :", "0x1D0 :", 7)
+  map_Result["NC_VGA_Distortion Center Offset Y"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1CF
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1C8 :", "0x1D0 :", 8)
+  map_Result["NC_VGA_EFL MSB"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1D0
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1D0 :", "0x1D8 :", 1)
+  map_Result["NC_VGA_EFL LSB"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1D1
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1D0 :", "0x1D8 :", 2)
+  map_Result["NC_VGA_Sensor Cal Temp"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1D2
+  str_Rlt = Func_GetDataForMatrix(str_FrontRes,"0x1D0 :", "0x1D8 :", 3)
+  map_Result["NC_VGA_Lens Cal Temp"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # get the FCMB of front camera 0-23Bytes
+  str_Tmp = ""
+  str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x0 :", "0x8 :")
+  str_Tmp = str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x8 :", "0x10 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x10 :", "0x18 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_FrontRes, "0x18 :", "0x20 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  if size(str_Tmp) == 64
+  {
+    map_Result["FCMB"] = str_Tmp
+  }
+
+  return _createResponseDict(True,map_Result)
+
+}
+
+def createBack1NVMData_D32(parameter)
+{
+  str_RawData = parameter.input.customKey onError e -> if True {
+    str_RawData = parameter.input.defaultKey    
+  }
+
+  map_Result = {}
+  str_Back1Res = String_SubStringByPreAndPost(str_RawData, "bytes :","Pass")
+    
+  # =============  NC_NVM Data =============
+  # ======= 0x0 ------ 0x8
+  # 0x0
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res,"0x0 :", "0x8 :", 1)
+  map_Result["NC_NVM Flag"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res,"0x0 :", "0x8 :", 2)
+  map_Result["NC_NVM Type"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res,"0x0 :", "0x8 :", 3)
+  map_Result["NC_NVM Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 3)
+  map_Result["NC_Camera Project"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 4)
+  map_Result["NC_Project Version"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 5)
+  map_Result["NC_Integrator"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Plant Code"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 6)
+  map_Result["NC_Camera Build"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 7)
+  map_Result["NC_Config Number"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 3)
+  map_Result["NC_IRCF Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_IRCF Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_IRCF Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 4)
+  map_Result["NC_Substrate Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Substrate Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Substrate Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # ======= 0x8 ------ 0x10
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 5)
+  map_Result["NC_Sensor Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Sensor Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Sensor Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 6)
+  map_Result["NC_Actuator Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Actuator Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Actuator Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 7)
+  map_Result["NC_Lens Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Lens Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Lens Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 8)
+  map_Result["NC_AF Driver Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_AF Driver Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_AF Driver Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1) 
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 1)
+  map_Result["NC_Sphere Sensor Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Sphere Sensor Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Sphere Sensor Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 2)
+  map_Result["NC_APS Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_APS Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_APS Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+    
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 3)
+  map_Result["NC_Flex Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Flex Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+    
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 4)
+  map_Result["NC_Stiffener Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Stiffener Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  # ======= 0x10 ------- 0x18
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :","0x40 :", 5)
+  map_Result["NC_Trim Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Trim Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x478 :","0x480 :", 6)
+
+  # if str_back1_Vendor == "DN8" #Back1 Vendor :LGIT // address :0x47D
+  # {
+  #   str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x478 :","0x480 :", 6)
+  # }
+  # else if str_back1_Vendor == "DNL" #Back1 Vendor : Sharp // address :0x459
+  # {
+  #   str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x458 :","0x460 :", 2)
+  # }
+  # else
+  # {
+  #   str_Rlt = ""
+  # }
+
+  if size(str_Rlt) > 0
+  {
+
+    map_Result["NC_bracket_vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["NC_bracket_Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["NC_bracket_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  }
+  else 
+  {
+    map_Result["NC_bracket_vendor"] = "Cannot get the value from diags"
+    map_Result["NC_bracket_Revision"] = "Cannot get the value from diags"
+    map_Result["NC_bracket_Variant"] = "Cannot get the value from diags"
+  }
+
+
+
+  # get the BCMB of front camera 0-17Bytes
+  str_Tmp = ""
+  str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x0 :", "0x8 :")
+  str_Tmp = str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x8 :", "0x10 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x10 :", "0x18 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  if size(str_Tmp) == 48
+  {
+    map_Result["BCMB"] = str_Tmp
+  }
+  return _createResponseDict(True,map_Result)
+}
+
+def createBackNVMData_D32(parameter)
+{
+  str_RawData = parameter.input.customKey onError e -> if True {
+    str_RawData = parameter.input.defaultKey    
+  }
+
+  map_Result = {}
+  str_Back1Res = String_SubStringByPreAndPost(str_RawData, "bytes :","0x50 :")
+    
+  # =============  NC_NVM Data =============
+  # ======= 0x0 ------ 0x8
+  # 0x0
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res,"0x0 :", "0x8 :", 1)
+  map_Result["NC_NVM Flag"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # 0x1
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res,"0x0 :", "0x8 :", 2)
+  map_Result["NC_NVM Type"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res,"0x0 :", "0x8 :", 3)
+  map_Result["NC_NVM Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # ======= 0x20 ------ 0x28
+  # 0x22
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 3)
+  map_Result["NC_Camera Project"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # 0x23
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 4)
+  map_Result["NC_Project Version"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # 0x24
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 5)
+  map_Result["NC_Integrator"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Plant Code"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  # 0x25
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 6)
+  map_Result["NC_Camera Build"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # 0x26
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x20 :", "0x28 :", 7)
+  map_Result["NC_Config Number"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  # ======= 0x30 ------ 0x38
+  # 0x32
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 3)
+  map_Result["NC_IRCF Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_IRCF Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_IRCF Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+  
+  # 0x33
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 4)
+  map_Result["NC_Substrate Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Substrate Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Substrate Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x34
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 5)
+  map_Result["NC_Sensor Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Sensor Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Sensor Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x35
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 6)
+  map_Result["NC_Actuator Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Actuator Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Actuator Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x36
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 7)
+  map_Result["NC_Lens Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Lens Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Lens Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x37
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x30 :", "0x38 :", 8)
+  map_Result["NC_AF Driver Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_AF Driver Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_AF Driver Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1) 
+
+
+  # ======= 0x38 ------ 0x40
+  # 0x38
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 1)
+  map_Result["NC_Sphere Sensor Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_Sphere Sensor Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_Sphere Sensor Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  # 0x39
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 2)
+  map_Result["NC_APS Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["NC_APS Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["NC_APS Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+    
+  # 0x3A
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 3)
+  map_Result["NC_Flex Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Flex Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+    
+  # 0x3B
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :", "0x40 :", 4)
+  map_Result["NC_Stiffener Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Stiffener Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  # 0x3C
+  str_Rlt = Func_GetDataForMatrix(str_Back1Res, "0x38 :","0x40 :", 5)
+  map_Result["NC_Trim Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 7)
+  map_Result["NC_Trim Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+
+  # get the BCMB of front camera 0-17Bytes
+  str_Tmp = ""
+  str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x0 :", "0x8 :")
+  str_Tmp = str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x8 :", "0x10 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x10 :", "0x18 :")
+  str_Tmp = str_Tmp + str_Rlt
+
+  # str_Rlt = Func_GetAlldataForMatrix(str_Back1Res, "0x18 :", "0x20 :")
+  # str_Tmp = str_Tmp + str_Rlt
+
+  if size(str_Tmp) == 48
+  {
+    map_Result["BCMB"] = str_Tmp
+  }
+
+  return _createResponseDict(True,map_Result)
+}
+
+def createRomeoNVMData_D32(parameter)
+{
+
+  str_RawData = parameter.input.customKey onError e -> if True {
+    str_RawData = parameter.input.defaultKey    
+  }
+
+  map_Result = {}
+  str_RomeoRes = String_SubStringByPreAndPost(str_RawData, "bytes :","Pass")
+    
+  # =============  NC_NVM Data =============
+  # ======= 0xB8 ------ 0xC0
+  # 0x0
+  # str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0xB8 :", "0xC0 :", 5)
+  # map_Result["OTP_re-cure"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # # 0x1
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 1)
+  map_Result["OTP_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 2)
+  map_Result["Project"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+  map_Result["Program_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 3)
+  map_Result["Integrator_Plant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 4)
+  map_Result["Aragon_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["Aragon_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["Aragon_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  if map_Result["OTP_Version"] == 6
+  {
+      
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 5)
+    map_Result["Benvolio_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["Benvolio_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["Benvolio_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 6)
+    map_Result["Homer_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["Homer_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["Homer_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 7)
+    map_Result["Substrate_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["Substrate_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["Substrate_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 8)
+    map_Result["Stone_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["Stone_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["Stone_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 1)
+    map_Result["Flex_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["Flex_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["Flex_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 2)
+    map_Result["Spider_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["Spider_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["Spider_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 3)
+    map_Result["Flea_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["Flea_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["Flea_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 4)
+    map_Result["Projector_Build"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 5)
+    map_Result["Config_Number"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 6)
+    map_Result["DOE_Byte"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 7)
+    map_Result["Traceability_Checksum"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 5)
+    map_Result["FOL_ID_PPPYWW[31:24]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 6)
+    map_Result["FOL_ID_PPPYWW[23:16]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 7)
+    map_Result["FOL_ID_PPPYWW[15:8]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 8)
+    map_Result["FOL_ID_PPPYWW[7:0]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 1)
+    map_Result["FOL_ID_DSSSS[23:16]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 2)
+    map_Result["FOL_ID_DSSSS[15:8]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 3)
+    map_Result["FOL_ID_DSSSS[7:0]"]  = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 4)
+    map_Result["FOL_ID_EEEERX[31:24]"]  = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 5)
+    map_Result["FOL_ID_EEEERX[23:16]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 6)
+    map_Result["FOL_ID_EEEERX[15:8]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 7)
+    map_Result["FOL_ID_EEEERX[7:0]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 8)
+    map_Result["SN_Checksum"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 1)
+    map_Result["Aragon_Wafer_ID_1"]  = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 2)
+    map_Result["Aragon_Wafer_ID_2"]  = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 3)
+    map_Result["Aragon_Wafer_ID_3"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 4)
+    map_Result["Aragon_Wafer_ID_Checksum"]= Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x78 :", "0x80 :", 4)
+    map_Result["Benvolio_WWD1_[11:4]"]= Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x78 :", "0x80 :", 5)
+    map_Result["Benvolio_WWD2_[3:0]"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+    map_Result["Benvolio_SSSS_1_[23:19]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x78 :", "0x80 :", 6)
+    map_Result["Benvolio_SSSS_2_[18:11]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x78 :", "0x80 :", 7)
+    map_Result["Benvolio_SSSS_3_[10:4]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x78 :", "0x80 :", 8)
+    map_Result["Benvolio_SSSS_4_[3:0]"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+    map_Result["Benvolio_RRCC_1[11:8]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x80 :", "0x88 :", 1)
+    map_Result["Benvolio_RRCC_2[7:0]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x80 :", "0x88 :", 2)
+    map_Result["Homer_Row"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x80 :", "0x88 :", 3)
+    map_Result["Homer_Column"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x80 :", "0x88 :", 4)
+    map_Result["Homer_Wafer_1"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x80 :", "0x88 :", 5)
+    map_Result["Homer_Wafer_2"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x80 :", "0x88 :", 6)
+    map_Result["Homer_Wafer_3"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x80 :", "0x88 :", 7)
+    map_Result["Homer_Wafer_4"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  }
+  else if map_Result["OTP_Version"] == 2
+  {
+      
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 5)
+    map_Result["Aragon_Wafer_ID_1"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 6)
+    map_Result["Aragon_Wafer_ID_2"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 7)
+    map_Result["Aragon_Wafer_ID_3"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 8)
+    map_Result["FOL_Test_Station_ID"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes, "0x8 :", "0x10 :", 1)
+    map_Result["Benvolio_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["Benvolio_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["Benvolio_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 2)
+    map_Result["Benvolio_WWD_1"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 3)
+    map_Result["Benvolio_WWD2"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+    map_Result["Benvolio_SSSS_1"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 4)
+    map_Result["Benvolio_SSSS_2"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 5)
+    map_Result["Benvolio_SSSS_3"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 6)
+    map_Result["Benvolio_SSSS_4"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+    map_Result["Benvolio_RRCC_1"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 7)
+    map_Result["Benvolio_RRCC_2"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 8)
+    map_Result["Benvolio_AA_Test_Station_ID"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 1)
+    map_Result["Homer_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["Homer_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["Homer_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 2)
+    map_Result["Homer_Row"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 3)
+    map_Result["Homer_Column"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 4)
+    map_Result["Homer_Wafer_1"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 5)
+    map_Result["Homer_Wafer_2"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 6)
+    map_Result["Homer_Week_1"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 7)
+    map_Result["Homer_Week_2"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 8)
+    map_Result["Homer_AA_Test_Station_ID"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 1)
+    map_Result["Substrate_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["Substrate_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["Substrate_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 2)
+    map_Result["Stone_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["Stone_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["Stone_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 3)
+    map_Result["Flex_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["Flex_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["Flex_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 4)
+    map_Result["Spider_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["Spider_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["Spider_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 5)
+    map_Result["Projector_Build"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 6)
+    map_Result["Config_Number"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 7)
+    map_Result["Year"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 8)
+    map_Result["Work_Week"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 5)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 8)
+    map_Result["Work_Week"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 5)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 1)
+    map_Result["Day"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 1)
+    map_Result["Day"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 2)
+    map_Result["Sequence_Number[0:7]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 3)
+    map_Result["Sequence_Number[8:15]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 4)
+    map_Result["Sequence_Number[16:23]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 5)
+    map_Result["Test_Software_Algorithm_Revision"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 6)
+    map_Result["DoE_Lookup[0:7]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 7)
+    map_Result["DoE_Lookup[8:15]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0xB8 :", "0xC0 :", 5)
+    map_Result["Flea_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["Flea_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["Flea_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+    
+  }
+
+  return _createResponseDict(True,map_Result)
+}
+
+def createRomeoNVMData_D33(parameter)
+{
+
+  str_RawData = parameter.input.customKey onError e -> if True {
+    str_RawData = parameter.input.defaultKey    
+  }
+
+  map_Result = {}
+  str_RomeoRes = String_SubStringByPreAndPost(str_RawData, "bytes :","Pass")
+    
+  # =============  NC_NVM Data =============
+  # ======= 0xB8 ------ 0xC0
+  # 0x0
+  # str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0xB8 :", "0xC0 :", 5)
+  # map_Result["OTP_re-cure"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+  # # 0x1
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 1)
+  map_Result["OTP_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 2)
+  map_Result["Project"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+  map_Result["Program_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 3)
+  map_Result["Integrator_Plant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 4)
+  map_Result["Aragon_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+  map_Result["Aragon_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+  map_Result["Aragon_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+      
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 5)
+    map_Result["Benvolio_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["Benvolio_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["Benvolio_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 6)
+    map_Result["Homer_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["Homer_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["Homer_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 7)
+    map_Result["Substrate_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["Substrate_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["Substrate_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x0 :", "0x8 :", 8)
+    map_Result["Stone_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["Stone_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["Stone_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 1)
+    map_Result["Flex_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["Flex_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["Flex_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 2)
+    map_Result["Spider_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["Spider_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["Spider_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 3)
+    map_Result["Flea_Vendor"] = Convert_HexStringToNumberByBits(str_Rlt, 5, 7)
+    map_Result["Flea_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 4)
+    map_Result["Flea_Variant"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 4)
+    map_Result["Projector_Build"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 5)
+    map_Result["Config_Number"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 6)
+    map_Result["DOE_Byte"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x8 :", "0x10 :", 7)
+    map_Result["Traceability_Checksum"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 5)
+    map_Result["FOL_ID_PPPYWW[31:24]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 6)
+    map_Result["FOL_ID_PPPYWW[23:16]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 7)
+    map_Result["FOL_ID_PPPYWW[15:8]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x10 :", "0x18 :", 8)
+    map_Result["FOL_ID_PPPYWW[7:0]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 1)
+    map_Result["FOL_ID_DSSSS[23:16]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 2)
+    map_Result["FOL_ID_DSSSS[15:8]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 3)
+    map_Result["FOL_ID_DSSSS[7:0]"]  = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 4)
+    map_Result["FOL_ID_EEEERX[31:24]"]  = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 5)
+    map_Result["FOL_ID_EEEERX[23:16]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 6)
+    map_Result["FOL_ID_EEEERX[15:8]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 7)
+    map_Result["FOL_ID_EEEERX[7:0]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x18 :", "0x20 :", 8)
+    map_Result["SN_Checksum"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 1)
+    map_Result["Aragon_Wafer_ID_1"]  = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 2)
+    map_Result["Aragon_Wafer_ID_2"]  = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 3)
+    map_Result["Aragon_Wafer_ID_3"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x20 :", "0x28 :", 4)
+    map_Result["Aragon_Wafer_ID_Checksum"]= Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x78 :", "0x80 :", 4)
+    map_Result["Benvolio_WWD1_[11:4]"]= Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x78 :", "0x80 :", 5)
+    map_Result["Benvolio_WWD2_[3:0]"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+    map_Result["Benvolio_SSSS_1_[23:19]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x78 :", "0x80 :", 6)
+    map_Result["Benvolio_SSSS_2_[18:11]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x78 :", "0x80 :", 7)
+    map_Result["Benvolio_SSSS_3_[10:4]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x78 :", "0x80 :", 8)
+    map_Result["Benvolio_SSSS_4_[3:0]"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 7)
+    map_Result["Benvolio_RRCC_1[11:8]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 3)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x80 :", "0x88 :", 1)
+    map_Result["Benvolio_RRCC_2[7:0]"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x80 :", "0x88 :", 2)
+    map_Result["Homer_Row"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x80 :", "0x88 :", 3)
+    map_Result["Homer_Column"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x80 :", "0x88 :", 4)
+    map_Result["Homer_Wafer_1"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x80 :", "0x88 :", 5)
+    map_Result["Homer_Wafer_2"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x80 :", "0x88 :", 6)
+    map_Result["Homer_Wafer_3"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"0x80 :", "0x88 :", 7)
+    map_Result["Homer_Wafer_4"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  return _createResponseDict(True,map_Result)
+}
+
+def RomeoSN_D32(parameter)
+{
+  rawData = parameter.input.customKey onError e -> if True {
+    rawData = parameter.input.defaultKey
+  }  
+
+  str_PPPYWW = ""
+  str_DSSSS = ""
+  str_EEEERX = ""
+  str_Tmp = ""
+  map_Result = {}
+  str_Rlt = Func_GetDataForMatrix(rawData,"0x0 :", "0x8 :", 1)
+  map_Result["OTP_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  if map_Result["OTP_Version"] == 6
+  {
+    # //======PPPYWW
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x28 :", "0x30 :", 7)
+    str_PPPYWW = str_PPPYWW + str_Tmp
+    
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x28 :", "0x30 :", 8)
+    str_PPPYWW = str_PPPYWW + str_Tmp
+
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 1)
+    str_PPPYWW = str_PPPYWW + str_Tmp
+    
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 2)
+    str_PPPYWW = str_PPPYWW + str_Tmp
+    # //str_PPPYWW = Hexto34digit_Romeo(str_PPPYWW, 6)
+    
+    # //======DSSSS
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 3)
+    str_DSSSS = str_DSSSS + str_Tmp
+    
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 4)
+    str_DSSSS = str_DSSSS + str_Tmp
+    
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 5)
+    str_DSSSS = str_DSSSS + str_Tmp
+    
+    # //str_DSSSS = Hexto34digit_Romeo(str_DSSSS, 5)
+    # //======PPPYWW
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 6)
+    str_EEEERX = str_EEEERX + str_Tmp
+    
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 7)
+    str_EEEERX = str_EEEERX + str_Tmp
+    
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 8)
+    str_EEEERX = str_EEEERX + str_Tmp
+    
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x38 :", "0x40 :", 1)
+    str_EEEERX = str_EEEERX + str_Tmp
+
+  }
+  else if map_Result["OTP_Version"] == 2
+  {
+     # //======PPPYWW
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x20 :", "0x28 :", 8)
+    str_PPPYWW = str_PPPYWW + str_Tmp
+    
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x28 :", "0x30 :", 1)
+    str_PPPYWW = str_PPPYWW + str_Tmp
+
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x28 :", "0x30 :", 2)
+    str_PPPYWW = str_PPPYWW + str_Tmp
+    
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x28 :", "0x30 :", 3)
+    str_PPPYWW = str_PPPYWW + str_Tmp
+    # //str_PPPYWW = Hexto34digit_Romeo(str_PPPYWW, 6)
+    
+    # //======DSSSS
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x28 :", "0x30 :", 4)
+    str_DSSSS = str_DSSSS + str_Tmp
+    
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x28 :", "0x30 :", 5)
+    str_DSSSS = str_DSSSS + str_Tmp
+    
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x28 :", "0x30 :", 6)
+    str_DSSSS = str_DSSSS + str_Tmp
+    
+    # //str_DSSSS = Hexto34digit_Romeo(str_DSSSS, 5)
+    # //======PPPYWW
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x28 :", "0x30 :", 7)
+    str_EEEERX = str_EEEERX + str_Tmp
+    
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x28 :", "0x30 :", 8)
+    str_EEEERX = str_EEEERX + str_Tmp
+    
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 1)
+    str_EEEERX = str_EEEERX + str_Tmp
+    
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 2)
+    str_EEEERX = str_EEEERX + str_Tmp
+
+  }
+
+
+  str_RomeoRlt = str_PPPYWW + str_DSSSS + str_EEEERX
+  str_RomeoRlt = String_Replace(str_RomeoRlt, "0", "")
+  str_RomeoRlt = String_Replace(str_RomeoRlt, "F", "")
+  # if String_IsNullOrEmpty(str_RomeoRlt)
+  # {
+  #     errorInfor = "Romeo SN original data can not be 0x0 or 0xF!"
+  #     FX_CreateRecord([name, errorInfor], False)
+  #     return ""
+  #     # raise exception(Atlas.Exceptions.TestFailedError, str_RomeoRlt, errorInfor)
+  # }
+  
+  str_PPPYWW = Func_Hexto34digit_Romeo(str_PPPYWW, 6)
+  str_DSSSS = Func_Hexto34digit_Romeo(str_DSSSS, 5)
+  str_EEEERX = Func_Hexto34digit_Romeo(str_EEEERX, 6)
+  str_RomeoSN = str_PPPYWW + str_DSSSS + str_EEEERX
+
+  return _createResponseDict(True,{parameter.output[0] : str_RomeoSN})
+}
+
+def RomeoSN_D33(parameter)
+{
+  rawData = parameter.input.customKey onError e -> if True {
+    rawData = parameter.input.defaultKey
+  }  
+
+  str_PPPYWW = ""
+  str_DSSSS = ""
+  str_EEEERX = ""
+  str_Tmp = ""
+  map_Result = {}
+  str_Rlt = Func_GetDataForMatrix(rawData,"0x0 :", "0x8 :", 1)
+  map_Result["OTP_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+    # //======PPPYWW
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x28 :", "0x30 :", 7)
+    str_PPPYWW = str_PPPYWW + str_Tmp
+    
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x28 :", "0x30 :", 8)
+    str_PPPYWW = str_PPPYWW + str_Tmp
+
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 1)
+    str_PPPYWW = str_PPPYWW + str_Tmp
+    
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 2)
+    str_PPPYWW = str_PPPYWW + str_Tmp
+    # //str_PPPYWW = Hexto34digit_Romeo(str_PPPYWW, 6)
+    
+    # //======DSSSS
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 3)
+    str_DSSSS = str_DSSSS + str_Tmp
+    
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 4)
+    str_DSSSS = str_DSSSS + str_Tmp
+    
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 5)
+    str_DSSSS = str_DSSSS + str_Tmp
+    
+    # //str_DSSSS = Hexto34digit_Romeo(str_DSSSS, 5)
+    # //======PPPYWW
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 6)
+    str_EEEERX = str_EEEERX + str_Tmp
+    
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 7)
+    str_EEEERX = str_EEEERX + str_Tmp
+    
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 8)
+    str_EEEERX = str_EEEERX + str_Tmp
+    
+    str_Tmp = Func_GetDataFromNVM(rawData, "0x38 :", "0x40 :", 1)
+    str_EEEERX = str_EEEERX + str_Tmp
+
+  str_RomeoRlt = str_PPPYWW + str_DSSSS + str_EEEERX
+  str_RomeoRlt = String_Replace(str_RomeoRlt, "0", "")
+  str_RomeoRlt = String_Replace(str_RomeoRlt, "F", "")
+  # if String_IsNullOrEmpty(str_RomeoRlt)
+  # {
+  #     errorInfor = "Romeo SN original data can not be 0x0 or 0xF!"
+  #     FX_CreateRecord([name, errorInfor], False)
+  #     return ""
+  #     # raise exception(Atlas.Exceptions.TestFailedError, str_RomeoRlt, errorInfor)
+  # }
+  
+  str_PPPYWW = Func_Hexto34digit_Romeo(str_PPPYWW, 6)
+  str_DSSSS = Func_Hexto34digit_Romeo(str_DSSSS, 5)
+  str_EEEERX = Func_Hexto34digit_Romeo(str_EEEERX, 6)
+  str_RomeoSN = str_PPPYWW + str_DSSSS + str_EEEERX
+
+  return _createResponseDict(True,{parameter.output[0] : str_RomeoSN})
+}
+
+
+# def Item_BlackLevelOffset(name, str_RawData)
+def blackLevelOffset(parameter)
+{
+  bol_result = True
+
+  substring = parameter.input.customKey onError e -> if True {
+    substring = parameter.input.defaultKey
+  }
+
+  substring = String_Replace(substring, "0x", "")
+  if size(substring) < 4
+  {
+    for i in range(0, 4-size(substring))
+    {
+      substring = "0" + substring
+    }
+  }
+
+  str_OffsetLow = "0x" + String_SubStringByFixLength(substring, size(substring)-2, 2)
+  str_OffsetHigh  = "0x" + String_SubStringByFixLength(substring, size(substring)-4, 2)
+
+  int_OffsetLow = numerify(str_OffsetLow)
+  int_OffsetHigh = numerify(str_OffsetHigh)
+
+  int_SinBit = Convert_NumberToNumberByBits(int_OffsetLow, 7, 7)
+  int_Msb = Convert_NumberToNumberByBits(int_OffsetLow, 0, 6)
+  int_Lab = Convert_NumberToNumberByBits(int_OffsetHigh, 0, 7)
+
+  int_Offset = (-1*int_SinBit*32768 + int_Msb*256 + int_Lab)/32.0
+  # Item_Config_CheckSpec(name, int_Offset)
+
+  return _createResponseDict(bol_result,{parameter.output[0] : int_Offset})
+}
+
+def RomeoSN(parameter)
+{
+  rawData = parameter.input.customKey onError e -> if True {
+    rawData = parameter.input.defaultKey
+  }  
+
+  str_PPPYWW = ""
+  str_DSSSS = ""
+  str_EEEERX = ""
+  str_Tmp = ""
+  # //======PPPYWW
+  str_Tmp = Func_GetDataFromNVM(rawData, "0x28 :", "0x30 :", 7)
+  str_PPPYWW = str_PPPYWW + str_Tmp
+  
+  str_Tmp = Func_GetDataFromNVM(rawData, "0x28 :", "0x30 :", 8)
+  str_PPPYWW = str_PPPYWW + str_Tmp
+
+  str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 1)
+  str_PPPYWW = str_PPPYWW + str_Tmp
+  
+  str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 2)
+  str_PPPYWW = str_PPPYWW + str_Tmp
+  # //str_PPPYWW = Hexto34digit_Romeo(str_PPPYWW, 6)
+  
+  # //======DSSSS
+  str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 3)
+  str_DSSSS = str_DSSSS + str_Tmp
+  
+  str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 4)
+  str_DSSSS = str_DSSSS + str_Tmp
+  
+  str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 5)
+  str_DSSSS = str_DSSSS + str_Tmp
+  
+  # //str_DSSSS = Hexto34digit_Romeo(str_DSSSS, 5)
+  # //======PPPYWW
+  str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 6)
+  str_EEEERX = str_EEEERX + str_Tmp
+  
+  str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :",7)
+  str_EEEERX = str_EEEERX + str_Tmp
+  
+  str_Tmp = Func_GetDataFromNVM(rawData, "0x30 :", "0x38 :", 8)
+  str_EEEERX = str_EEEERX + str_Tmp
+  
+  str_Tmp = Func_GetDataFromNVM(rawData, "0x38 :", "0x40 :", 1)
+  str_EEEERX = str_EEEERX + str_Tmp
+  str_RomeoRlt = str_PPPYWW + str_DSSSS + str_EEEERX
+  str_RomeoRlt = String_Replace(str_RomeoRlt, "0", "")
+  str_RomeoRlt = String_Replace(str_RomeoRlt, "F", "")
+
+  str_PPPYWW = Func_Hexto34digit_Romeo(str_PPPYWW, 6)
+  str_DSSSS = Func_Hexto34digit_Romeo(str_DSSSS, 5)
+  str_EEEERX = Func_Hexto34digit_Romeo(str_EEEERX, 6)
+  str_RomeoSN = str_PPPYWW + str_DSSSS + str_EEEERX
+
+  return _createResponseDict(True,{parameter.output[0] : str_RomeoSN})
+}
+
+Func_Hexto34digit_Romeo(str_Hexvalue, int_index)
+{
+    str_Result = ""
+    str_digits = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+    if size(str_Hexvalue) != 6 && size(str_Hexvalue) != 8
+    {
+        str_Result = "The data is invalid, please check the diag response!"
+        return str_Result;
+    }
+    int_Value = Convert_HexStringToNumber(str_Hexvalue)
+    if(int_Value <= 0)
+    {
+        str_Result = "The data is invalid, please check the diag response!"
+        return str_Result;
+    }
+    i = 0;
+    str_tmp = ""
+    arr_rlt = []
+    for i in range(0, int_index)
+    {
+      int_Value = stringify(int_Value)
+      int_Value = FX_Regex_FirstMatchOfSubpattern(int_Value, "^(\\d+)\\.?")[1]
+      int_Value = numerify(int_Value)
+      arr_rlt = arr_rlt + [int_Value % 34]
+      int_Value = int_Value / 34
+    }
+    for i in range(0, int_index)
+    {
+      str_Result = String_SubStringByFixLength(str_digits, arr_rlt[i], 1) + str_Result
+    }
+    
+    return str_Result;
+}
+
+Func_GetDataFromNVM(str_RawData, str_Prefix, str_Postfix,int_Position)
+{
+  substring = String_SubStringByPreAndPost(str_RawData, str_Prefix, str_Postfix)
+  arr_Data = tokenize(substring, " ")
+  str_data = arr_Data[int_Position-1]
+  str_data = String_Replace(str_data, "0x", "")
+  if size(str_data) == 1
+  {
+    str_data = "0" + str_data
+  }
+  return str_data
+}
+
+Convert_HexStringToNumberByBits(string, startBit, endBit)
+{
+  number = Atlas.call_plugin("ConvertPlugin", "hexStringToNumber", {"string": string})
+  return Convert_NumberToNumberByBits(number, startBit, endBit)
+}
+
+Convert_NumberToNumberByBits(number, startBit, endBit, optionalArgs...)
+{
+  string = "0"
+  bits = 8
+  if size(optionalArgs) > 0 && isNumber(optionalArgs[0])
+  {
+    bits = optionalArgs[0]
+  }
+  if number == 0
+  {
+    for i in range(0, bits)
+    {
+       string =  "0" + string
+    }
+  }
+  else
+  {
+    string = Atlas.call_plugin("ConvertPlugin", "numberToBinString", {"number": number})
+  }
+  if size(string) < bits
+  {
+    num = size(string)%bits
+    for index in range(0, bits - num)
+    {
+      string = "0" + string
+    }
+  }
+  stringLength = size(string)
+  startIndex = -1
+  endIndex = -1
+  if startBit > stringLength - 1
+  {
+    raise exception(Atlas.Exceptions.InvalidParameter, startBit, "startBit out of range")
+  }
+  if endBit > stringLength - 1
+  {
+    startIndex = 0
+  }
+  else
+  {
+    startIndex = stringLength - endBit - 1;
+  }
+  endIndex = stringLength - startBit;
+  string = string[startIndex:endIndex]
+  return Atlas.call_plugin("ConvertPlugin", "binStringToNumber", {"string": string})
+}
+
+Func_GetAlldataForMatrix(str_RawData,str_Prefix,str_Postfix)
+{ 
+  str_Result = ""
+  substring = String_SubStringByPreAndPost(str_RawData, str_Prefix, str_Postfix)
+  arr_Data = tokenize(substring, " ")
+  for str_Rlt in arr_Data
+  {
+    str_Hex = String_Replace(str_Rlt, "0x", "")
+    if size(str_Hex) == 1
+    {
+      str_Hex = "0" + str_Hex
+    }
+    str_Result = str_Result + str_Hex
+  }
+  return str_Result
+}

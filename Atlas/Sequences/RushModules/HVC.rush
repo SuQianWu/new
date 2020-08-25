@@ -1,0 +1,17 @@
+def HVCUnit_SendAndGet(command)
+{
+  _PDCADict = {}
+  _PDCADict.testname = "Dut"
+  _PDCADict.subtestname = "sendCommand"
+  _PDCADict.subsubtestname = command  
+
+  logMsg = cformat("Write --> %s,%s","Dut",command)
+  logInfo(logMsg) 
+
+  _response = Atlas.call_plugin("HVCDut", "sendCommand", {"command": command}+_PDCADict)
+
+  logMsg = cformat("Read <-- %s,%s","Dut",stringify(_response))
+  logInfo(logMsg) 
+
+  return _response
+}

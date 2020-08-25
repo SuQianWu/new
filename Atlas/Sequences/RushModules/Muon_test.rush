@@ -1,0 +1,99 @@
+
+def CalculateMuonValue(dicSetting)
+{
+    atlasLogInfo("parameter:",dicSetting)
+
+    szKeyValue = dicSetting.input.key
+    szPtype   = dicSetting.type
+    iLength   = numerify(dicSetting.length)
+
+    arySeparateData = Strings.tokenize(szKeyValue, "\n")
+    aryBufferColumn = []
+
+    retDict = {
+        "result" : True,
+        "output" : {
+            dicSetting.output[0] : ""
+        }
+    }
+    
+    for index in range(0, size(arySeparateData))
+    {
+        strSingleColumn = arySeparateData[index]
+        if(Strings.range_of_substring(strSingleColumn,"CH0_DATA") != Nil){
+            aryBufferColumn = aryBufferColumn + [strSingleColumn]
+        }
+    }
+
+    if(size(aryBufferColumn) < iLength){
+        Atlas.Log.error("The Muon data isn't integrated!")
+        retDict.result = False
+        return retDict
+    }
+    else if (size(aryBufferColumn) > iLength){
+        Atlas.Log.error("The Muon data count is not correct and it's more than target!")
+        retDict.result = False
+        return retDict
+    }
+    else{
+        aryBufferData = []
+        for j in range(0, iLength){
+            strSingleData = aryBufferColumn[j]
+            strNeedData   = Regex.groups(strSingleData,"CH0_DATA:(\\d*?)$",8)[0]
+            if(strNeedData != Nil && strNeedData != ""){
+                aryBufferData = aryBufferData + [strNeedData]
+            }
+            else{
+                Atlas.Log.error("The value is Nil by Regex")
+                retDict.result = False
+                return retDict
+            }
+        }
+        atlasLogInfo("aryBufferData is ", aryBufferData)
+
+        if(szPtype == "AVERAGE"){
+            numSum = 0.0
+            numAverage = 0.0
+            for k in range(0, iLength)
+            {
+                numSum = numSum + numerify(aryBufferData[k])
+            }
+            numAverage = numSum / iLength
+            strReturnValue  = stringify(numAverage)
+            atlasLogInfo("Average Muon value is " + strReturnValue)
+        }
+        else if(szPtype == "MAX"){
+            numMaxData = numerify(aryBufferData[0])
+            for k in range(0, iLength)
+            {
+                numTempData = numerify(aryBufferData[k])
+                numMaxData  = choice(numTempData > numMaxData, numTempData, numMaxData)
+            }
+            strReturnValue  = stringify(numMaxData)
+            atlasLogInfo("Max Muon value is " + strReturnValue)
+        }
+        else if(szPtype == "MIN"){
+            numMinData = numerify(aryBufferData[0])
+            for k in range(0, iLength)
+            {
+                numTempData = numerify(aryBufferData[k])
+                numMinData  = choice(numTempData < numMinData, numTempData, numMinData)
+            }
+            strReturnValue  = stringify(numMinData)
+            atlasLogInfo("Min Muon value is " + strReturnValue)
+        }
+        else{
+            Atlas.Log.error("Please input which type data you need")
+            retDict.result = False
+            return retDict
+        }
+        retDict.output[dicSetting.output[0]] = strReturnValue
+        retDict = {
+            "result" : True,
+            "output" : {
+                dicSetting.output[0] : strReturnValue
+            }
+        }
+        return retDict
+    }
+}

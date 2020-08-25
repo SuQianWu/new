@@ -1,0 +1,128 @@
+def analysisSIMResponse(dicSetting)
+{
+    atlasLogInfo("start to do Analysi SIM response")
+    strSimResponse = dicSetting.input.customKey onError e-> strSimResponse = dicSetting.input.defaultKey
+    arySimResponse = Strings.tokenize(strSimResponse, "\n")
+    outputKey = dicSetting.output[0]
+    simAsciiResponse = []
+    for strdata in arySimResponse
+    {
+        singleData = Strings.tokenize(strdata, " ")
+        println("singleData", singleData, size(singleData))
+        if size(singleData) > 17
+        {
+            realData = singleData[1:17]
+            simAsciiResponse = simAsciiResponse + realData
+        }
+        else
+        {
+          continue
+        }
+    }
+    realString = ""
+    for eachBit in simAsciiResponse
+    {
+      if eachBit == "0A" or eachBit == "0D" or eachBit == ""
+      {
+        atlasLogInfo('no need transfer',eachBit)
+      }
+      else
+      {
+        strTmp = Atlas.call_plugin("ConvertPlugin", "hexStringToString", {"hexString": eachBit})
+        realString = realString + strTmp
+      }
+    }
+    atlasLogInfo('real string is ', realString)
+    return {"result" : True, "output" : {outputKey : realString} }
+
+
+}
+
+def loop_SIM_Commands(dicSetting)
+{
+  bSubRet = True
+  iStartTime = System.now()
+  outputKeys = dicSetting.output
+  strSimConfig = dicSetting.input.customKey
+  atlasLogInfo('Output keys are', outputKeys, "Sim config is ", strSimConfig)
+  output = {}
+  retDic = {
+    "result" : True, 
+    "output" : output
+  }
+  iTimeOut = 8
+  iEndTime = 0.0
+  while(True)
+  {
+    if(iEndTime > iTimeOut)
+    {
+      bSubRet = False
+      break
+    }
+    System.sleep(0.05)
+    SIM_TARY_INSTALL = Atlas.call_plugin("Dut","sendCommand",{"command": "baseband --prop sim-tray-installed", "timeout": 1}) onError e-> SIM_TARY_INSTALL = ""
+    output = output + {outputKeys[0] : SIM_TARY_INSTALL}
+
+    SIM_CARD_INSTALL = Atlas.call_plugin("Dut","sendCommand",{"command": "baseband --prop sim-card-installed", "timeout": 1 }) onError e-> SIM_CARD_INSTALL = ""
+    output = output + {outputKeys[1] : SIM_CARD_INSTALL}
+
+    SIM0_CCID_VALUE = Atlas.call_plugin("Dut","sendCommand",{"command": "base --send_cmd \"at+csus=0\"", "timeout": 1 }) onError e-> SIM0_CCID_VALUE = ""
+    SIM0_CCID_VALUE = Atlas.call_plugin("Dut","sendCommand",{"command": "base --send_cmd \"at+ccid\"", "timeout": 1 }) onError e-> SIM0_CCID_VALUE = ""
+
+    paraTmp= {"input":{"customKey": SIM0_CCID_VALUE}, "output": [outputKeys[2]]}
+    SIM0_CCID_VALUE = analysisSIMResponse(paraTmp)["output"][outputKeys[2]]
+    atlasLogInfo("SIMO CCID is ", paraTmp)
+    catchSim0ccid = Regex.groups(SIM0_CCID_VALUE, "(OK)", 8)[0] onError e-> catchSim0ccid = Nil
+    if catchSim0ccid == Nil
+    {
+      atlasLogInfo("catch SIM 0 is Nil")
+    }
+    atlasLogInfo("Allen catchSim0ccid", catchSim0ccid)
+    output = output + {outputKeys[2] : SIM0_CCID_VALUE}
+    SIM1_CCID_VALUE =Atlas.call_plugin("Dut","sendCommand",{"command": "base --send_cmd \"at+csus=1\"", "timeout": 1 }) onError e-> SIM1_CCID_VALUE = ""
+    SIM1_CCID_VALUE = Atlas.call_plugin("Dut","sendCommand",{"command": "base --send_cmd \"at+ccid\"", "timeout": 1 }) onError e-> SIM1_CCID_VALUE = ""
+    paraTmp= {"input":{"customKey": SIM1_CCID_VALUE}, "output": [outputKeys[3]]}
+    SIM1_CCID_VALUE = analysisSIMResponse(paraTmp)["output"][outputKeys[3]]
+    atlasLogInfo("SIM1_CCID_VALUE is ", SIM1_CCID_VALUE)
+    catchSim1ccid = Regex.groups(SIM1_CCID_VALUE, "(OK|ERROR)", 8)[0] onError e-> catchSim1ccid = Nil
+    
+    # SIM_eid = Atlas.call_plugin("Dut","sendCommand",{"command": "baseband --send_cmd 'at@vinyl:get_eid(2)", "timeout": 1 }) onError e-> SIM_eid = ""
+    # output = output + {outputKeys[4] : SIM_eid}
+    if strSimConfig == "S" or strSimConfig == "V"
+    {
+      matchingSim1ccid = "ERROR"
+    }
+    else if strSimConfig == "D"
+    {
+      matchingSim1ccid = "OK"
+    }
+    else
+    {
+      atlasLogInfo("sim config flex is wrong,", strSimConfig)
+      matchingSim1ccid = Nil
+      return {"result" : False, "output" : output}
+    }
+    output = output + {outputKeys[3] : SIM1_CCID_VALUE}
+    if(catchSim0ccid == "OK" and catchSim1ccid == matchingSim1ccid)
+    {
+      atlasLogInfo("get output OK", output)
+      break
+    }
+    iEndTime = System.now()-iStartTime
+  }
+  retDic["output"] = output
+  atlasLogInfo("Output is ", retDic["output"])
+  if(bSubRet == True)
+  {
+      atlasLogInfo("Result,",bSubRet, " Output is ", retDic["output"])
+      return retDic 
+  }
+  else
+  {
+     retDic["result"] = bSubRet
+     atlasLogInfo("Result,",bSubRet, " Output is ", retDic["output"])
+     return retDic
+  }
+}
+
+

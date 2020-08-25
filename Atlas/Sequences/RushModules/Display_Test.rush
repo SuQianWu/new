@@ -1,0 +1,128 @@
+def catchSampleData(dicSetting){
+    atlasLogInfo("parameter:",dicSetting)
+    strValue = dicSetting.input.customKey onError e -> if True{
+        strValue = dicSetting.input.defaultKey
+    }
+    iStart = numerify(dicSetting.startFrom)
+    iEnd = numerify(dicSetting.endTo)
+    strColIndex = dicSetting.colIndex
+    strMemkey = dicSetting.memKeyType
+    arrMemkey = Strings.tokenize(strMemkey,",")
+    arrSampleData=[]
+    dicMemoryValues = {}
+    dicOutput = {}
+    bRet = False
+    if size(strValue)>=10
+        {
+            strValue=Strings.splice(strValue," ","")
+            strValue=Strings.splice(strValue,"X:","")
+            strValue=Strings.splice(strValue,"Y:","")
+            strValue=Strings.splice(strValue,"Z:","")
+            strValue=Strings.splice(strValue,"mg","")
+            arrRawData=Strings.tokenize(strValue,"\n")
+            atlasLogInfo(arrRawData)
+            iCount=size(arrRawData)
+            atlasLogInfo("iStart=",iStart," iEnd=",iEnd," iCount=",iCount)
+            if isNil(iEnd)
+                {
+                     iEnd=iCount
+                }
+            if iEnd<iStart or iEnd>(iCount-1)
+                {
+                    iEnd=iCount
+                }
+            for i in range(iStart,iEnd+1)
+                {
+                    strTem=arrRawData[i]
+
+                    # strTem= Regex.groups(strTem, "\\=(.*?)$", 8)[0]
+                    if strTem != Nil and strTem != ""
+                        {
+                            arrTem=Strings.tokenize(strTem,",")
+                            arrTem=_removeObjAtList(arrTem,Nil)
+                            arrSampleData=arrSampleData+[arrTem]
+                            atlasLogInfo("????????",arrTem)
+                        }
+                    else
+                        {
+                            atlasLogInfo("can't get the string by regex")
+                        }
+                }
+            arrColIndex=Strings.tokenize(strColIndex,",")
+
+            for strCol in arrColIndex
+                {
+                    # atlasLogInfo("+++++++++++",strCol)
+                    iColIndex=numerify(strCol)
+                    sumValue=0
+                    averageValue=0
+                    stdValue=0
+                    varianceValue=0
+                    for iRowIndex in range(0,size(arrSampleData))
+                        {
+                            # atlasLogInfo("-------------",iRowIndex)
+                            arrOneRaw=arrSampleData[iRowIndex]
+                            if size(arrOneRaw)> iColIndex
+                                {
+                                    aData=numerify(arrOneRaw[iColIndex])
+                                    sumValue=sumValue+aData
+                                }
+                            else
+                                {
+                                    Atlas.Log.error("The ColIndex=",iColIndex," out of array count!")
+                                    return False
+                                }
+                        }
+                    averageValue=sumValue/(iEnd-iStart+1)
+                    atlasLogInfo("averageValue============",averageValue)
+                    for iRowIndex in range(0,size(arrSampleData))
+                        {
+                            arrTempt=[]
+                            arrTempt=arrSampleData[iRowIndex]
+                            aData=numerify(arrTempt[iColIndex])
+                            varianceValue=varianceValue+Math.pow(aData-averageValue,2)
+                        }
+                    varianceValue=varianceValue/(iEnd-iStart+1)
+                    stdValue=Math.sqrt(varianceValue)
+                    atlasLogInfo("varianceValue==============",varianceValue,"stdValue=",stdValue)
+                    for akey in arrMemkey
+                        {
+                            atlasLogInfo("akey-------------",akey)
+                            if Strings.location_of_substring(akey,"SUM")!=Nil
+                                {
+                                    # Globals.g_strReturnValue=Globals.g_strReturnValue+"Col"+stringify(strCol)+"SUM="+stringify(sumValue)+";"
+                                    keyname=akey+"_"+strCol
+                                    dicMemoryValues[keyname]=sumValue
+                                }
+                            elsif Strings.location_of_substring(akey,"AVE")!=Nil
+                                {
+                                    # Globals.g_strReturnValue=Globals.g_strReturnValue+"Col"+stringify(strCol)+"AVE="+stringify(averageValue)+";"
+                                    keyname=akey+"_"+strCol
+                                    dicMemoryValues[keyname]=averageValue
+                                }
+                            elsif Strings.location_of_substring(akey,"STD")!=Nil
+                                {
+                                    # Globals.g_strReturnValue=Globals.g_strReturnValue+"Col"+stringify(strCol)+"STD="+stringify(stdValue)+";"
+                                    keyname=akey+"_"+strCol
+                                    dicMemoryValues[keyname]=stdValue
+                                }
+                        }
+                     atlasLogInfo("*********************")
+                    atlasLogInfo("dicMemoryValues=",dicMemoryValues)
+                }
+                bRet = True
+                # atlasLogInfo("The Return Value is: ",Globals.g_strReturnValue)
+        }
+    else
+        {
+            bRet= False
+        }
+    for i in range(0, size(keys(dicMemoryValues))){
+        dicOutput[dicSetting.output[i]] = dicMemoryValues[dicSetting.output[i]]
+    }
+    retDict = {
+        "result" : bRet,
+        "output" : dicOutput
+    }
+    return retDict
+}

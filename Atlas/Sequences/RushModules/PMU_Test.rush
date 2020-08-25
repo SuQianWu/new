@@ -1,0 +1,706 @@
+def createPMUBuckTestRecords(parameter){
+
+  _cachedString = parameter.input.customKey onError e -> if True {
+    _cachedString = parameter.input.defaultKey
+  }
+  _pattern="^(buck.*)$"
+  _matches=Regex.matches(_cachedString,_pattern,16)
+
+  _records = []
+  for buck in _matches{
+    _pattern="^buck([\\d]{1,2}):.*measured\\s(.*)\\smV\\s:\\s([\\w]{4})$"
+    _matches=Regex.groups(buck,_pattern,16)
+    itemname = cformat("PMU_BuckCheck%s",_matches[0])
+   if _matches[2]=="PASS"
+      {
+        _result=True
+      }
+    else
+      {
+        _result=False
+      }
+    _record = Atlas.create_record([parameter.testName, itemname, stringify(_matches[1])], _result)
+    _record.Measurement = {}
+    _record.Measurement.Value = _matches[1]
+    _records = _records :: _record
+    
+  }
+  return _createResponseDict_v2(True,{},_records)
+}
+
+def cachePMUADCData(itemname,raw_value,pattern) {
+  _recordSet = {}
+  _recordSet.name = itemname
+  _recordSet.value = Regex.groups(raw_value,pattern,16)[0] onError e ->if True {
+    _recordSet.value = 0
+  }
+  return _recordSet
+}
+
+def createPMUADCTestRecords(parameter){
+  _cachedString = parameter.input.customKey onError e -> if True {
+    _cachedString = parameter.input.defaultKey
+  }
+  _testName=parameter.testName
+  _techName=parameter.techName
+  _category = parameter.input.categoryKey 
+  _category2 = parameter.input.categoryKey2
+  _category3  = parameter.input.categoryKey3
+  _resultList = []
+  # if _category=="D331p"
+  #   {
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_vddout_Imola",_cachedString,"vddout:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_tcal_Imola",_cachedString,"tcal:\\s(.*)\\sOhm")
+      # _resultList = _resultList :: cachePMUADCData("pmu_adc_tcal_Imola", _cachedString, "tcal:\\s(.*)\\sOhm")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_temp1_forehead_Imola", _cachedString, "temp1:\\s(.*)\\sC")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_temp2_rear_camera_Imola", _cachedString, "temp2:\\s(.*)\\sC")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_temp3_radio_pa_Imola", _cachedString, "temp3:\\s(.*)\\sC")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_temp4_ap_Imola", _cachedString, "temp4:\\s(.*)\\sC")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_temp5_nc_Imola", _cachedString, "temp5:\\s(.*)\\sC")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_ldo5_Imola", _cachedString, "temp_ldo5_6:\\s(.*)\\sC")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_ldo8_Imola", _cachedString, "temp_ldo8:\\s(.*)\\sC")
+      # _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_ldogb_Imola", _cachedString, "temp_ldogb:\\s(.*)\\sC")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck0_Imola", _cachedString, "temp_buck0:\\s(.*)\\sC")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck1_Imola", _cachedString, "temp_buck1:\\s(.*)\\sC")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck2_Imola", _cachedString, "temp_buck2:\\s(.*)\\sC")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck3_5_Imola", _cachedString, "temp_buck3:\\s(.*)\\sC")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck4_Imola", _cachedString, "temp_buck4:\\s(.*)\\sC")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck11_Imola", _cachedString, "temp_buck11:\\s(.*)\\sC")
+
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck2_pp_soc_s1_Imola", _cachedString, "ibuck2:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck3_pp1v8_s2_Imola", _cachedString, "ibuck3:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck4_pp1v1_s2_Imola", _cachedString, "ibuck4:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck5_pp0v8_soc_fixed_s1_Imola", _cachedString, "ibuck5:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck6_pp1v25_s2_Imola", _cachedString, "ibuck6:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck7_pp_cpu_sram_Imola", _cachedString, "ibuck7:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck8_pp_gpu_sram_Imola", _cachedString, "ibuck8:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck9_pp_dcs_s1_Imola", _cachedString, "ibuck9:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck10_pp0v6_vddql_s1_Imola", _cachedString, "ibuck10:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck11_pp_cpu_ecore_Imola", _cachedString, "ibuck11:\\s(.*)\\smA")
+      # _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck0_sar_Imola", _cachedString, "ibuck0_sar:\\s(.*)\\smA")
+      # _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck1_sar_Imola", _cachedString, "ibuck1_sar:\\s(.*)\\smA")
+      # _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck2_sar_Imola", _cachedString, "ibuck2_sar:\\s(.*)\\smA")
+      # _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck11_sar_Imola", _cachedString, "ibuck11_sar:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_buck0_pp_cpu_pcore_Imola", _cachedString, "BIST buck0:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_buck1_pp_gpu_Imola", _cachedString, "BIST buck1:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_buck2_pp_soc_s1_Imola", _cachedString, "BIST buck2:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_buck3_pp1v8_s2_Imola", _cachedString, "BIST buck3:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_buck4_pp1v1_s2_Imola", _cachedString, "BIST buck4:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_buck5_pp0v8_soc_fixed_s1_Imola", _cachedString, "BIST buck5:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_buck6_pp1v25_s2_Imola", _cachedString, "BIST buck6:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_buck7_pp_cpu_sram_Imola", _cachedString, "BIST buck7:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_buck8_pp_gpu_sram_Imola", _cachedString, "BIST buck8:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_buck9_pp_dcs_s1_Imola", _cachedString, "BIST buck9:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_buck10_pp0v6_vddql_s1_Imola", _cachedString, "BIST buck10:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_buck11_pp_cpu_ecore_Imola", _cachedString, "BIST buck11:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_buck3_sw1_pp1v8_io_Imola", _cachedString, "BIST buck3_sw1:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_buck3_sw2_pp1v8_s2_Imola", _cachedString, "BIST buck3_sw2:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_buck3_sw3_PP1V8_imu_s2_Imola", _cachedString, "BIST buck3_sw3:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_buck3_sw4_NC_DENALI_Imola", _cachedString, "BIST buck3_sw4:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo0_pp1v5_ldo0_s2_Imola", _cachedString, "BIST ldo0:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo1_pp3v3_usb_Imola", _cachedString, "BIST ldo1:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo2_pp1v8_audio_va_s2_Imola", _cachedString, "BIST ldo2:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo3_pp3v0_penrose_Imola", _cachedString, "BIST ldo3:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo5_pp3v0_nand_Imola", _cachedString, "BIST ldo5:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo7_pp3v0_s2_Imola", _cachedString, "BIST ldo7:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo9_pp1v8_always_Imola", _cachedString, "BIST ldo9:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo11_pp1v2_soc_Imola", _cachedString, "BIST ldo11:\\s(.*)\\smV")
+      if _category2 =="D818" {
+          _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo14_pp1v0_display_glacier_dvdd_Imola", _cachedString, "BIST ldo14:\\s(.*)\\smV")
+        }
+      else{
+          _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo14_pp1v0_display_dvdd_Imola", _cachedString, "BIST ldo14:\\s(.*)\\smV")
+      }
+
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo0_pp2v5_ldo0_s2_Imola", _cachedString, "BIST ildo0:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo1_pp3v3_usb_Imola", _cachedString, "BIST ildo1:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo2_pp1v8_audio_va_s2_Imola", _cachedString, "BIST ildo2:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo3_pp3v0_PENROSE_Imola", _cachedString, "BIST ildo3:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo4_pp0v7_vdd_low_s2_Imola", _cachedString, "BIST ldo4:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo6_nc_Imola", _cachedString, "BIST ldo6:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo8_pp0v9_nand_Imola", _cachedString, "BIST ldo8:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo10_pp3v0_display_Imola", _cachedString, "BIST ldo10:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo12_nc_Imola", _cachedString, "BIST ldo12:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo13_pp1v2_codec_s2_Imola", _cachedString, "BIST ldo13:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo4_pp0v7_vdd_low_s2_Imola", _cachedString, "BIST ildo4:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo5_pp3v0_nand_Imola", _cachedString, "BIST ildo5:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo6_NC_DENALI_Imola", _cachedString, "BIST ildo6:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo7_pp3v0_s2_Imola", _cachedString, "BIST ildo7:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo8_pp0v9_nand_Imola", _cachedString, "BIST ildo8:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo9_pp1v8_always_Imola", _cachedString, "BIST ildo9:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo10_Denali_LDO10_Imola", _cachedString, "BIST ildo10:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo11_pp1v2_soc_Imola", _cachedString, "BIST ildo11:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo12_nc_Imola", _cachedString, "BIST ildo12:\\s(.*)\\smA")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo13_pp1v2_codec_s2_Imola", _cachedString, "BIST ildo13:\\s(.*)\\smA")
+
+      if _category2 =="D818" {
+          _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo14_LDO14_glacier_Imola", _cachedString, "BIST ldo14:\\s(.*)\\smV")
+        }
+      else{
+         _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo14_LDO14_Imola", _cachedString, "BIST ildo14:\\s(.*)\\smA")
+      }
+
+
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa0_ap_to_pmu_amux_out_Imola", _cachedString, "BIST amuxa0:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa1_DISPLAY_TO_CHESTNUT_PWR_EN_Imola", _cachedString, "BIST amuxa1:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa2_TOUCH_TO_AMUX_PP1V8_Imola", _cachedString, "BIST amuxa2:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa3_paper_tiger1_Imola", _cachedString, "BIST amuxa3:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa4_paper_tiger2_Imola", _cachedString, "BIST amuxa4:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa5_hydra_to_pmu_brick_id_Imola", _cachedString, "BIST amuxa5:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa6_ACORN_TO_PMU_ADC_Imola", _cachedString, "BIST amuxa6:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxay_pmu_amux_ay_Imola", _cachedString, "BIST amuxay:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb0_AP_TO_PMU_AMUX_SYNC_Imola", _cachedString, "BIST amuxb0:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb1_chestnut_to_pmu_amux_Imola", _cachedString, "BIST amuxb1:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb2_display_to_pmu_amux_Imola", _cachedString, "BIST amuxb2:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb3_campmu_to_pmu_amux_Imola", _cachedString, "BIST amuxb3:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb4_GECKO_TO_PMU_AMUX_Imola", _cachedString, "BIST amuxb4:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb5_rigel_to_isp_int_Imola", _cachedString, "BIST amuxb5:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb6_ap_to_pmu_test_clockout_Imola", _cachedString, "BIST amuxb6:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb7_pmu_to_wlan_clk32k_Imola", _cachedString, "BIST amuxb7:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxby_pmu_amux_by_Imola", _cachedString, "BIST amuxby:\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("acorn_ground_Imola", _cachedString, "acorn ground :\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("acorn_die_temp_Imola", _cachedString, "acorn die_temp :\\s(.*)\\sC") 
+      _resultList = _resultList :: cachePMUADCData("acorn_vref_Imola", _cachedString, "acorn vref :\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("acorn_vb_Imola", _cachedString, "acorn vb :\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("acorn_vn_Imola", _cachedString, "acorn vn :\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("acorn_vl_Imola", _cachedString, "acorn vl :\\s(.*)\\smV")
+      _resultList = _resultList :: cachePMUADCData("acorn_vc_Imola", _cachedString, "acorn vc :\\s(.*)\\smV")
+
+  #   }
+  # else
+  #   {
+
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_vddout", _cachedString, "vddout:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_vddhi", _cachedString, "vddhi:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_vddref", _cachedString, "vddref:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_tcal", _cachedString, "tcal:\\s(.*)\\sOhm")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_temp1_forehead", _cachedString, "temp1:\\s(.*)\\sC")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_temp2_rear_camera", _cachedString, "temp2:\\s(.*)\\sC")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_temp3_radio_pa", _cachedString, "temp3:\\s(.*)\\sC")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_temp4_ap", _cachedString, "temp4:\\s(.*)\\sC")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_temp5_nc", _cachedString, "temp5:\\s(.*)\\sC")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_ldo5", _cachedString, "temp_ldo5:\\s(.*)\\sC")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_ldo8", _cachedString, "temp_ldo8:\\s(.*)\\sC")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_ldogb", _cachedString, "temp_ldogb:\\s(.*)\\sC")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck0", _cachedString, "temp_buck0:\\s(.*)\\sC")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck1", _cachedString, "temp_buck1:\\s(.*)\\sC")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck2", _cachedString, "temp_buck2:\\s(.*)\\sC")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck3_5", _cachedString, "temp_buck3_5:\\s(.*)\\sC")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck4", _cachedString, "temp_buck4:\\s(.*)\\sC")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck7", _cachedString, "temp_buck7:\\s(.*)\\sC")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck8", _cachedString, "temp_buck8:\\s(.*)\\sC")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck9", _cachedString, "temp_buck9_10:\\s(.*)\\sC")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck10", _cachedString, "temp_buck9_10:\\s(.*)\\sC")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck11", _cachedString, "temp_buck11:\\s(.*)\\sC")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_hib_sw", _cachedString, "temp_load_sw:\\s(.*)\\sC")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_tjint", _cachedString, "tjint:\\s(.*)\\sC")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck2_pp_soc_s1", _cachedString, "ibuck2:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck3_pp1v8_s2", _cachedString, "ibuck3:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck4_pp1v1_s2", _cachedString, "ibuck4:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck5_pp0v8_soc_fixed_s1", _cachedString, "ibuck5:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck6_pp1v25_s2", _cachedString, "ibuck6:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck7_pp_cpu_sram", _cachedString, "ibuck7:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck8_pp_gpu_sram", _cachedString, "ibuck8:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck9_pp_dcs_s1", _cachedString, "ibuck9:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck10_pp0v6_vddql_s1", _cachedString, "ibuck10:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck11_pp_cpu_ecore", _cachedString, "ibuck11:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck0_sar", _cachedString, "ibuck0_sar:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck1_sar", _cachedString, "ibuck1_sar:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck2_sar", _cachedString, "ibuck2_sar:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck11_sar", _cachedString, "ibuck11_sar:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_buck0_pp_cpu_pcore", _cachedString, "BIST buck0:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_buck1_pp_gpu", _cachedString, "BIST buck1:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_buck2_pp_soc_s1", _cachedString, "BIST buck2:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_buck3_pp1v8_s2", _cachedString, "BIST buck3:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_buck4_pp1v1_s2", _cachedString, "BIST buck4:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_buck5_pp0v8_soc_fixed_s1", _cachedString, "BIST buck5:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_buck6_pp1v25_s2", _cachedString, "BIST buck6:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_buck7_pp_cpu_sram", _cachedString, "BIST buck7:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_buck8_pp_gpu_sram", _cachedString, "BIST buck8:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_buck9_pp_dcs_s1", _cachedString, "BIST buck9:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_buck10_pp0v6_vddql_s1", _cachedString, "BIST buck10:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_buck11_pp_cpu_ecore", _cachedString, "BIST buck11:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_buck3_sw1_pp1v8_io", _cachedString, "BIST buck3_sw1:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_buck3_sw2_pp1v8_touch_racer_s2", _cachedString, "BIST buck3_sw2:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_buck3_sw3_PP1V8_imu_s2", _cachedString, "BIST buck3_sw3:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_buck3_sw4_NC_DENALI", _cachedString, "BIST buck3_sw4:\\s(.*)\\smV")
+
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo0_pp2v5_ldo0_s2", _cachedString, "BIST ldo0:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo1_pp3v3_usb", _cachedString, "BIST ldo1:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo2_pp1v8_audio_va_s2", _cachedString, "BIST ldo2:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo3_pp3v0_penrose", _cachedString, "BIST ldo3:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo4_pp0v7_vdd_low_s2", _cachedString, "BIST ldo4:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo5_pp3v0_nand", _cachedString, "BIST ldo5:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo6_nc", _cachedString, "BIST ldo6:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo7_pp3v0_s2", _cachedString, "BIST ldo7:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo8_pp0v9_nand", _cachedString, "BIST ldo8:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo9_pp1v8_always", _cachedString, "BIST ldo9:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo10_pp3v0_display", _cachedString, "BIST ldo10:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo11_pp1v2_soc", _cachedString, "BIST ldo11:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo12_nc", _cachedString, "BIST ldo12:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo13_pp1v2_codec_s2", _cachedString, "BIST ldo13:\\s(.*)\\smV")
+
+      
+  #     if _category2 =="D818" {
+  #         _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo14_pp1v0_display_glacier_dvdd", _cachedString, "BIST ldo14:\\s(.*)\\smV")
+  #       }
+  #     else{
+  #        _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo14_pp1v0_display_dvdd", _cachedString, "BIST ldo14:\\s(.*)\\smV")
+  #     }
+
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_vrtc", _cachedString, "BIST vrtc:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo0_pp2v5_ldo0_s2", _cachedString, "BIST ildo0:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo1_pp3v3_usb", _cachedString, "BIST ildo1:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo2_pp1v8_audio_va_s2", _cachedString, "BIST ildo2:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo3_pp3v0_PENROSE", _cachedString, "BIST ildo3:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo4_pp0v7_vdd_low_s2", _cachedString, "BIST ildo4:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo5_pp3v0_nand", _cachedString, "BIST ildo5:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo6_NC_DENALI", _cachedString, "BIST ildo6:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo7_pp3v0_s2", _cachedString, "BIST ildo7:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo8_pp0v9_nand", _cachedString, "BIST ildo8:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo9_pp1v8_always", _cachedString, "BIST ildo9:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo10_Denali_LDO10", _cachedString, "BIST ildo10:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo11_pp1v2_soc", _cachedString, "BIST ildo11:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo12_nc", _cachedString, "BIST ildo12:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo13_pp1v2_codec_s2", _cachedString, "BIST ildo13:\\s(.*)\\smA")
+
+      
+
+  #     if _category2 =="D818" {
+  #         _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo14_LDO14_glacier", _cachedString, "BIST ldo14:\\s(.*)\\smV")
+  #       }
+  #     else{
+  #        _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo14_LDO14", _cachedString, "BIST ildo14:\\s(.*)\\smA")
+  #     }
+
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_irtc", _cachedString, "BIST irtc:\\s(.*)\\smA")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa0_ap_to_pmu_amux_out", _cachedString, "BIST amuxa0:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa1_DISPLAY_TO_CHESTNUT_PWR_EN", _cachedString, "BIST amuxa1:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa2_TOUCH_TO_AMUX_PP1V8", _cachedString, "BIST amuxa2:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa3_paper_tiger1", _cachedString, "BIST amuxa3:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa4_paper_tiger2", _cachedString, "BIST amuxa4:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa5_hydra_to_pmu_brick_id", _cachedString, "BIST amuxa5:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa6_ACORN_TO_PMU_ADC", _cachedString, "BIST amuxa6:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxay_pmu_amux_ay", _cachedString, "BIST amuxay:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb0_AP_TO_PMU_AMUX_SYNC", _cachedString, "BIST amuxb0:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb1_chestnut_to_pmu_amux", _cachedString, "BIST amuxb1:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb2_display_to_pmu_amux", _cachedString, "BIST amuxb2:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb3_campmu_to_pmu_amux", _cachedString, "BIST amuxb3:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb4_GECKO_TO_PMU_AMUX", _cachedString, "BIST amuxb4:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb5_rigel_to_isp_int", _cachedString, "BIST amuxb5:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb6_ap_to_pmu_test_clockout", _cachedString, "BIST amuxb6:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb7_pmu_to_wlan_clk32k", _cachedString, "BIST amuxb7:\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxby_pmu_amux_by", _cachedString, "BIST amuxby:\\s(.*)\\smV")
+
+  #     _resultList = _resultList :: cachePMUADCData("acorn_ground", _cachedString, "acorn ground :\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("acorn_die_temp", _cachedString, "acorn die_temp :\\s(.*)\\sC")
+  #     _resultList = _resultList :: cachePMUADCData("acorn_vref", _cachedString, "acorn vref :\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("acorn_vb", _cachedString, "acorn vb :\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("acorn_vn", _cachedString, "acorn vn :\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("acorn_vl", _cachedString, "acorn vl :\\s(.*)\\smV")
+  #     _resultList = _resultList :: cachePMUADCData("acorn_vc", _cachedString, "acorn vc :\\s(.*)\\smV")
+  #   }
+
+   # _resultList = _resultList :: cachePMUADCData("pmu_adc_brick_id", _cachedString, "brick_id:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_brick_id_usb_dp", _cachedString, "brick_id_usb_d\\+:\\s(.*)\\s*mV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_brick_id_usb_dm", _cachedString, "brick_id_usb_d-:\\s(.*)\\s*mV")
+   # _resultList = _resultList :: cachePMUADCData("pmu_adc_adc_in", _cachedString, "adc_in7:\\s(.*)\\smV")
+   # _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_ldo10", _cachedString, "temp_ldo10:\\s(.*)\\sC")
+   # _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck5", _cachedString, "temp_buck5:\\s(.*)\\sC")
+   # _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck6", _cachedString, "temp_buck6:\\s(.*)\\sC")
+   # _resultList = _resultList :: cachePMUADCData("pmu_adc_buck4_sw1_pp1v1", _cachedString, "BIST buck4_sw1:\\s(.*)\\smV")
+   # _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo15_pp1v8_mesa", _cachedString, "BIST ldo15:\\s(.*)\\smV")
+   # _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo16_nc", _cachedString, "BIST ldo16:\\s(.*)\\smV")
+   # _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo17_pp3v0_NC", _cachedString, "BIST ldo17:\\s(.*)\\smV")
+   # _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo18_pp1v2_ut_dvdd", _cachedString, "BIST ldo18:\\s(.*)\\smV")
+   # _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo19_pp1v2_nh_nv_dvdd", _cachedString, "BIST ldo19:\\s(.*)\\smV")
+   # _resultList = _resultList :: cachePMUADCData("pmu_adc_vbuf_1v2", _cachedString, "BIST vbuf_1v2:\\s(.*)\\smV")
+  #  _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuf_1v2", _cachedString, "BIST ibuf_1v2:\\s(.*)\\smA")
+  #_resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck8", _cachedString, "temp_buck8:\\s(.*)\\sC")
+  #_resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck0_pp_cpu_pcore", _cachedString, "ibuck0:\\s(.*)\\smA")
+  #_resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck1_pp_gpu", _cachedString, "ibuck1:\\s(.*)\\smA")
+  #_resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck3_pp1v8_s2", _cachedString, "ibuck3:\\s(.*)\\smA")
+  #_resultList = _resultList :: cachePMUADCData("pmu_adc_buck0_pp_cpu_pcore",  _cachedString, "BIST buck0:\\s(.*)\\smV")
+  #_resultList = _resultList :: cachePMUADCData("pmu_adc_buck1_pp_gpu",  _cachedString, "BIST buck1:\\s(.*)\\smV")
+  #_resultList = _resultList :: cachePMUADCData("pmu_adc_buck2_pp_soc_s1",  _cachedString, "BIST buck2:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_buck3_pp1v8_s2",  _cachedString, "BIST buck3:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_buck4_pp1v1_s2",  _cachedString, "BIST buck4:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_buck5_pp0v8_soc_fixed_s1",  _cachedString, "BIST buck5:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_buck6_pp1v25_s2",  _cachedString, "BIST buck6:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_buck7_pp_cpu_sram",  _cachedString, "BIST buck7:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_buck8_pp_gpu_sram",  _cachedString, "BIST buck8:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_buck9_pp_dcs_s1",  _cachedString, "BIST buck9:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_buck10_pp0v6_vddql_s1",  _cachedString, "BIST buck10:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_buck11_pp_cpu_ecore",  _cachedString, "BIST buck11:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_buck3_sw1_pp1v8_io",  _cachedString, "BIST buck3_sw1:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_buck3_sw2_pp1v8_touch_racer_s2",  _cachedString, "BIST buck3_sw2:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_buck3_sw3_PP1V8_imu_s2",  _cachedString, "BIST buck3_sw3:\\s(.*)\\smV")
+  # #    _resultList = _resultList :: cachePMUADCData("pmu_adc_buck4_sw1_pp1v1",  _cachedString, "BIST buck4_sw1:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo0_pp2v5_ldo0_s2",  _cachedString, "BIST ldo0:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo1_pp3v3_usb",  _cachedString, "BIST ldo1:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo2_pp1v8_audio_va_s2",  _cachedString, "BIST ldo2:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo3_penrose",  _cachedString, "BIST ldo3:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo4_pp0v7_vdd_low_s2",  _cachedString, "BIST ldo4:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo5_pp3v0_nand",  _cachedString, "BIST ldo5:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo6_nc",  _cachedString, "BIST ldo6:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo7_pp3v0_s2",  _cachedString, "BIST ldo7:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo8_pp0v9_nand",  _cachedString, "BIST ldo8:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo9_pp1v8_always",  _cachedString, "BIST ldo9:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo10_pp3v0_display",  _cachedString, "BIST ldo10:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo11_pp1v2_soc",  _cachedString, "BIST ldo11:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo12_nc",  _cachedString, "BIST ldo12:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo13_pp1v2_codec_s2",  _cachedString, "BIST ldo13:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo14_pp1v0_display_dvdd",  _cachedString, "BIST ldo14:\\s(.*)\\smV")
+  # #    _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo15_pp1v8_mesa",  _cachedString, "BIST ldo15:\\s(.*)\\smV")
+  # #    _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo16_nc",  _cachedString, "BIST ldo16:\\s(.*)\\smV")
+  # #    _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo17_pp3v0_NC",  _cachedString, "BIST ldo17:\\s(.*)\\smV")
+  # #    _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo18_pp1v2_ut_dvdd",  _cachedString, "BIST ldo18:\\s(.*)\\smV")
+  # #    _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo19_pp1v2_nh_nv_dvdd",  _cachedString, "BIST ldo19:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_vrtc",  _cachedString, "BIST vrtc:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_vbuf_1v2",  _cachedString, "BIST vbuf_1v2:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuf_1v2",  _cachedString, "BIST ibuf_1v2:\\s(.*)\\smA")
+  #_resultList = _resultList :: cachePMUADCData("pmu_adc_ildo12_nc",  _cachedString, "BIST ildo12:\\s(.*)\\smA")
+  #    _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo15_pp1v8_mesa",  _cachedString, "BIST ildo15:\\s(.*)\\smA")
+  #    _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo16_nc",  _cachedString, "BIST ildo16:\\s(.*)\\smA")
+  #    _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo17_pp3v0_NC",  _cachedString, "BIST ildo17:\\s(.*)\\smA")
+  #    _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo18_pp1v2_ut_dvdd",  _cachedString, "BIST ildo18:\\s(.*)\\smA")
+  #    _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo19_pp1v2_nh_nv_dvdd",  _cachedString, "BIST ildo19:\\s(.*)\\smA")
+  #    _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa7_acc_buck_to_pmu_amux",  _cachedString, "BIST amuxa7:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb4_pmu_to_wlan_clk32k",  _cachedString, "BIST amuxb4:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb7_nc", _cachedString, "BIST amuxb7:\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxby_pmu_amux_by", _cachedString, "BIST amuxby:\\s(.*)\\smV")
+
+  # //Cascard
+
+#     _resultList = _resultList :: cachePMUADCData("Cascade_Ground", _cachedString, "Cascade ground :\\s(.*)\\smV")
+#     _resultList = _resultList :: cachePMUADCData("Cascade_VIN", _cachedString, "Cascade vin :\\s(.*)\\smV")
+#     _resultList = _resultList :: cachePMUADCData("Cascade_VREF", _cachedString, "Cascade vref :\\s(.*)\\smV")
+#     _resultList = _resultList :: cachePMUADCData("Cascade_VBST", _cachedString, "Cascade vboost :\\s(.*)\\smV")
+#     _resultList = _resultList :: cachePMUADCData("Cascade_VLDO1", _cachedString, "Cascade vldo1 :\\s(.*)\\smV")
+#     _resultList = _resultList :: cachePMUADCData("Cascade_VLDO2", _cachedString, "Cascade vldo2 :\\s(.*)\\smV")
+#     _resultList = _resultList :: cachePMUADCData("Cascade_VLDO3", _cachedString, "Cascade vldo3 :\\s(.*)\\smV")
+#     _resultList = _resultList :: cachePMUADCData("Cascade_VNEG", _cachedString, "Cascade vneg :\\s(.*)\\smV")
+#     _resultList = _resultList :: cachePMUADCData("Cascade_ILDO1", _cachedString, "Cascade ildo1 :\\s(.*)\\smA")
+#     _resultList = _resultList :: cachePMUADCData("Cascade_ILDO2", _cachedString, "Cascade ildo2 :\\s(.*)\\smA")
+#     _resultList = _resultList :: cachePMUADCData("Cascade_ILDO3", _cachedString, "Cascade ildo3 :\\s(.*)\\smA")
+#     _resultList = _resultList :: cachePMUADCData("Cascade_Ineg", _cachedString, "Cascade ineg :\\s(.*)\\smA")
+#     _resultList = _resultList :: cachePMUADCData("Cascade_Die_temp", _cachedString, "Cascade die_temp :\\s(.*)\\sC")
+  # _resultList = _resultList :: cachePMUADCData("Cascade_VLIN1", _cachedString, "Cascade vin :\\s(.*)\\smV")
+
+  _resultList = _resultList :: cachePMUADCData("yangtze_adc_vbus1", _cachedString, "yangtze vbus1 :\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("yangtze_adc_vbus1lv", _cachedString, "yangtze vbus1lv :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("yangtze_adc_vbus2", _cachedString, "yangtze vbus2 :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("yangtze_adc_vbat", _cachedString, "yangtze vbat :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("yangtze_adc_vdd", _cachedString, "yangtze vdd :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("yangtze_adc_die_temp", _cachedString, "yangtze die_temp :\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("yangtze_adc_ibus", _cachedString, "yangtze ibus :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("yangtze_adc_ibat", _cachedString, "yangtze ibat :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("yangtze_adc_vldo", _cachedString, "yangtze vldo :\\s(.*)\\smV")
+  # _resultList = _resultList :: cachePMUADCData("yangtze_adc_vntc", _cachedString, "yangtze vntc :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("gecko_vacc_ext", _cachedString, "gecko vacc_ext :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("gecko_iacc_ext", _cachedString, "gecko iacc_ext :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("gecko_tacc_ext", _cachedString, "gecko tacc_ext :\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("gecko_vref_ext", _cachedString, "gecko vref_ext :\\s(.*)\\smV")
+
+  _resultList = _resultList :: cachePMUADCData("cpmu_ppvddmain", _cachedString, "cpmu ppvddmain :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("cpmu_vldo4", _cachedString, "cpmu vldo4 :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("cpmu_vldo9", _cachedString, "cpmu vldo9 :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("cpmu_vldo10", _cachedString, "cpmu vldo10 :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("cpmu_vldo15", _cachedString, "cpmu vldo15 :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("cpmu_vldo17", _cachedString, "cpmu vldo17 :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("cpmu_vldo18", _cachedString, "cpmu vldo18 :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("cpmu_vldo19", _cachedString, "cpmu vldo19 :\\s(.*)\\smV")
+
+  if _category !="D331p" && _category3 == "0x07"{
+    _resultList = _resultList :: cachePMUADCData("cpmu_vldo20_Denali", _cachedString, "cpmu vldo20 :\\s(.*)\\smV")
+  }
+else{
+    _resultList = _resultList :: cachePMUADCData("cpmu_vldo20", _cachedString, "cpmu vldo20 :\\s(.*)\\smV")
+   }
+
+  _resultList = _resultList :: cachePMUADCData("cpmu_vldo21", _cachedString, "cpmu vldo21 :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("cpmu_vldo22", _cachedString, "cpmu vldo22 :\\s(.*)\\smV")
+  
+  _resultList = _resultList :: cachePMUADCData("cpmu_ildo4", _cachedString, "cpmu ildo4 :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("cpmu_ildo9", _cachedString, "cpmu ildo9 :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("cpmu_ildo10", _cachedString, "cpmu ildo10 :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("cpmu_ildo15", _cachedString, "cpmu ildo15 :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("cpmu_ildo17", _cachedString, "cpmu ildo17 :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("cpmu_ildo18", _cachedString, "cpmu ildo18 :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("cpmu_ildo19", _cachedString, "cpmu ildo19 :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("cpmu_ildo20", _cachedString, "cpmu ildo20 :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("cpmu_ildo21", _cachedString, "cpmu ildo21 :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("cpmu_ildo22", _cachedString, "cpmu ildo22 :\\s(.*)\\smA")
+
+  _resultList = _resultList :: cachePMUADCData("cpmu_vrtc", _cachedString, "cpmu vrtc :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("cpmu_irtc", _cachedString, "cpmu irtc :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("cpmu_tjint", _cachedString, "cpmu tjint :\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("cpmu_tcal", _cachedString, "cpmu tcal :\\s(.*)\\sOhm")        
+  _resultList = _resultList :: cachePMUADCData("cpmu_tdev1", _cachedString, "cpmu tdev1 :\\s(.*)\\sOhm")
+  _resultList = _resultList :: cachePMUADCData("cpmu_tdev2", _cachedString, "cpmu tdev2 :\\s(.*)\\sOhm")
+
+  _resultList = _resultList :: cachePMUADCData("cpmu_tdie1", _cachedString, "cpmu tdie1 :\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("cpmu_tdie2", _cachedString, "cpmu tdie2 :\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("cpmu_tdie3", _cachedString, "cpmu tdie3 :\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("cpmu_tdie4", _cachedString, "cpmu tdie4 :\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("cpmu_tdie5", _cachedString, "cpmu tdie5 :\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("cpmu_tdie6", _cachedString, "cpmu tdie6 :\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("cpmu_tbuck9", _cachedString, "cpmu tbuck9 :\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("cpmu_tloadsw", _cachedString, "cpmu tloadsw :\\s(.*)\\sC")
+
+  _resultList = _resultList :: cachePMUADCData("cpmu_vbuck9", _cachedString, "cpmu vbuck9 :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("cpmu_ibuck9", _cachedString, "cpmu ibuck9 :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("cpmu_vbuck3_sw1", _cachedString, "cpmu vbuck3_sw1 :\\s(.*)\\smV")
+
+  _resultList = _resultList :: cachePMUADCData("acorn_vin", _cachedString, "acorn vin :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("acorn_vp", _cachedString, "acorn vp :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("acorn_vh", _cachedString, "acorn vh :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("acorn_va", _cachedString, "acorn va :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("acorn_ia", _cachedString, "acorn ia :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("acorn_in", _cachedString, "acorn in :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("acorn_ip", _cachedString, "acorn ip :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("acorn_ih", _cachedString, "acorn ih :\\s(.*)\\smA")
+
+
+  _records = []
+  for item in _resultList {
+    parameter = {}
+    parameter.input = {}
+    parameter.input.customKey = item.value
+    parameter.name = item.name
+    parameter.testName=_testName
+    parameter.techName=_techName
+    _retObj = createRecord(parameter)
+    _records = _records :: _retObj.record
+    
+  }
+  return _createResponseDict_v2(True,{},_records)
+
+}
+
+def createPMUADCTestRecords_D32(parameter){
+  _cachedString = parameter.input.customKey onError e -> if True {
+    _cachedString = parameter.input.defaultKey
+  }
+  _testName=parameter.testName
+  _techName=parameter.techName
+  _category = parameter.input.categoryKey 
+  # _category2 = parameter.input.categoryKey2
+  _resultList = []
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_vddout", _cachedString, "vddout:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_vddhi", _cachedString, "vddhi:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_vddref", _cachedString, "vddref:\\s(.*)\\smV")
+  #    _resultList = _resultList :: cachePMUADCData("pmu_adc_brick_id", _cachedString, "brick_id:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_brick_id_usb_dp", _cachedString, "brick_id_usb_d\\+:\\s(.*)\\s?mV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_brick_id_usb_dm", _cachedString, "brick_id_usb_d\-:\\s(.*)\\s?mV")
+  #    _resultList = _resultList :: cachePMUADCData("pmu_adc_adc_in", _cachedString, "adc_in7:\\s(.*)\\smV")
+
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_tcal", _cachedString, "tcal:\\s(.*)\\sOhm")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_temp1_forehead", _cachedString, "temp1:\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_temp2_rear_camera", _cachedString, "temp2:\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_temp3_radio_pa", _cachedString, "temp3:\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_temp4_ap", _cachedString, "temp4:\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_temp5_nc", _cachedString, "temp5:\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_ldo5", _cachedString, "temp_ldo5:\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_ldo8", _cachedString, "temp_ldogb:\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_ldogb", _cachedString, "temp_ldo8:\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck0", _cachedString, "temp_buck0:\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck1", _cachedString, "temp_buck1:\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck2", _cachedString, "temp_buck2:\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck3_5", _cachedString, "temp_buck3_5:\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck4", _cachedString, "temp_buck4:\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck7", _cachedString, "temp_buck7:\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck8", _cachedString, "temp_buck8:\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck9", _cachedString, "temp_buck9_10:\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck10", _cachedString, "temp_buck9_10:\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_buck11", _cachedString, "temp_buck11:\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_temp_hib_sw", _cachedString, "temp_load_sw:\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_tjint", _cachedString, "tjint:\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck2_pp_soc_s1", _cachedString, "ibuck2:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck3_pp1v8_s2", _cachedString, "ibuck3:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck4_pp1v1_s2", _cachedString, "ibuck4:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck5_pp0v8_soc_fixed_s1", _cachedString, "ibuck5:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck6_pp1v25_s2", _cachedString, "ibuck6:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck7_pp_cpu_sram", _cachedString, "ibuck7:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck8_pp_gpu_sram", _cachedString, "ibuck8:\\s(.*)\\smA")  #time out
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck9_pp_dcs_s1", _cachedString, "ibuck9:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck10_pp0v6_vddql_s1", _cachedString, "ibuck10:\\s(.*)\\smA")  #time out
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck11_pp_cpu_ecore", _cachedString, "ibuck11:\\s(.*)\\smA")
+  #miss ibuck0_sar -ibuck2_sar ibuck11_sar
+
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck0_sar", _cachedString, "ibuck0_sar:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck1_sar", _cachedString, "ibuck1_sar:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck2_sar", _cachedString, "ibuck2_sar:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ibuck11_sar", _cachedString, "ibuck11_sar:\\s(.*)\\smA")
+
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_buck0_pp_cpu_pcore", _cachedString, "BIST buck0:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_buck1_pp_gpu", _cachedString, "BIST buck1:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_buck2_pp_soc_s1", _cachedString, "BIST buck2:\\s(.*)\\smV")
+
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_buck3_pp1v8_s2", _cachedString, "BIST buck3:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_buck4_pp1v1_s2", _cachedString, "BIST buck4:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_buck5_pp0v8_soc_fixed_s1", _cachedString, "BIST buck5:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_buck6_pp1v25_s2", _cachedString, "BIST buck6:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_buck7_pp_cpu_sram", _cachedString, "BIST buck7:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_buck8_pp_gpu_sram", _cachedString, "BIST buck8:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_buck9_pp_dcs_s1", _cachedString, "BIST buck9:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_buck10_pp0v6_vddql_s1", _cachedString, "BIST buck10:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_buck11_pp_cpu_ecore", _cachedString, "BIST buck11:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_buck3_sw1_pp1v8_io", _cachedString, "BIST buck3_sw1:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_buck3_sw2_pp1v8_touch_racer_s2", _cachedString, "BIST buck3_sw2:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_buck3_sw3_PP1V8_imu_s2", _cachedString, "BIST buck3_sw3:\\s(.*)\\smV")
+  #miss buck3_sw4
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_buck3_sw4_NC_DENALI", _cachedString, "BIST buck3_sw4:\\s(.*)\\smV")
+
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo0_pp2v5_ldo0_s2", _cachedString, "BIST ldo0:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo1_pp3v3_usb", _cachedString, "BIST ldo1:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo2_pp1v8_audio_va_s2", _cachedString, "BIST ldo2:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo3_pp3v0_penrose", _cachedString, "BIST ldo3:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo4_pp0v7_vdd_low_s2", _cachedString, "BIST ldo4:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo5_pp3v0_nand", _cachedString, "BIST ldo5:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo6_nc", _cachedString, "BIST ldo6:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo7_pp3v0_s2", _cachedString, "BIST ldo7:\\s(.*)\\smV")
+
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo8_pp0v9_nand", _cachedString, "BIST ldo8:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo9_pp1v8_always", _cachedString, "BIST ldo9:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo10_pp3v0_display", _cachedString, "BIST ldo10:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo11_pp1v2_soc", _cachedString, "BIST ldo11:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo12_nc", _cachedString, "BIST ldo12:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo13_pp1v2_codec_s2", _cachedString, "BIST ldo13:\\s(.*)\\smV")
+
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ldo14_pp1v0_display_dvdd", _cachedString, "BIST ldo14:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_vrtc", _cachedString, "BIST vrtc:\\s(.*)\\smV")#don't contain
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo0_pp2v5_ldo0_s2", _cachedString, "BIST ildo0:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo1_pp3v3_usb", _cachedString, "BIST ildo1:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo2_pp1v8_audio_va_s2", _cachedString, "BIST ildo2:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo3_PP3V0_PENROSE", _cachedString, "BIST ildo3:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo4_pp0v7_vdd_low_s2", _cachedString, "BIST ildo4:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo5_pp3v0_nand", _cachedString, "BIST ildo5:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo6_NC_DENALI", _cachedString, "BIST ildo6:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo7_pp3v0_s2", _cachedString, "BIST ildo7:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo8_pp0v9_nand", _cachedString, "BIST ildo8:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo9_pp1v8_always", _cachedString, "BIST ildo9:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo10_Denali_LDO10", _cachedString, "BIST ildo10:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo11_pp1v2_soc", _cachedString, "BIST ildo11:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo12_nc", _cachedString, "BIST ildo12:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo13_pp1v2_codec_s2", _cachedString, "BIST ildo13:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_ildo14_Denali_LDO14", _cachedString, "BIST ildo14:\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_irtc", _cachedString, "BIST irtc:\\s(.*)\\smA")   #don't contain
+
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa0_ap_to_pmu_amux_out", _cachedString, "BIST amuxa0:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa1_DISPLAY_TO_CHESTNUT_PWR_EN", _cachedString, "BIST amuxa1:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa2_TOUCH_TO_AMUX_PP1V8", _cachedString, "BIST amuxa2:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa3_paper_tiger1", _cachedString, "BIST amuxa3:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa4_paper_tiger2", _cachedString, "BIST amuxa4:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa5_HYDRA_TO_PMU_USB_BRICK_ID_TIA", _cachedString, "BIST amuxa5:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa6_acorn_to_pmu_adc", _cachedString, "BIST amuxa6:\\s(.*)\\smV")
+
+  #    _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxa7_acc_buck_to_pmu_amux", _cachedString, "BIST amuxa7:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb0_AP_TO_PMU_AMUX_SYNC", _cachedString, "BIST amuxb0:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb1_chestnut_to_pmu_amux", _cachedString, "BIST amuxb1:\\s(.*)\\smV")
+
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb2_display_to_pmu_amux", _cachedString, "BIST amuxb2:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb3_campmu_to_pmu_amux", _cachedString, "BIST amuxb3:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb4_GECKO_TO_PMU_AMUX", _cachedString, "BIST amuxb4:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb5_rigel_to_isp_int", _cachedString, "BIST amuxb5:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb6_ap_to_pmu_test_clockout", _cachedString, "BIST amuxb6:\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxb7_pmu_to_wlan_clk32k", _cachedString, "BIST amuxb7:\\s(.*)\\smV")
+
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxay_pmu_amux_ay", _cachedString, "BIST amuxay:\\s(.*)\\smV")
+
+  _resultList = _resultList :: cachePMUADCData("pmu_adc_amuxby_pmu_amux_by", _cachedString, "BIST amuxby:\\s(.*)\\smV")
+
+  _resultList = _resultList :: cachePMUADCData("cpmu_ppvddmain", _cachedString, "cpmu ppvddmain :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("cpmu_vldo4", _cachedString, "cpmu vldo4 :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("cpmu_vldo9", _cachedString, "cpmu vldo9 :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("cpmu_vldo10", _cachedString, "cpmu vldo10 :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("cpmu_vldo15", _cachedString, "cpmu vldo15 :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("cpmu_vldo17", _cachedString, "cpmu vldo17 :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("cpmu_vldo18", _cachedString, "cpmu vldo18 :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("cpmu_vldo19", _cachedString, "cpmu vldo19 :\\s(.*)\\smV")
+
+  _resultList = _resultList :: cachePMUADCData("cpmu_vldo20", _cachedString, "cpmu vldo20 :\\s(.*)\\smV")
+  
+  _resultList = _resultList :: cachePMUADCData("cpmu_vldo21", _cachedString, "cpmu vldo21 :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("cpmu_vldo22", _cachedString, "cpmu vldo22 :\\s(.*)\\smV")
+
+  _resultList = _resultList :: cachePMUADCData("cpmu_ildo4", _cachedString, "cpmu ildo4 :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("cpmu_ildo9", _cachedString, "cpmu ildo9 :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("cpmu_ildo10", _cachedString, "cpmu ildo10 :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("cpmu_ildo15", _cachedString, "cpmu ildo15 :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("cpmu_ildo17", _cachedString, "cpmu ildo17 :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("cpmu_ildo18", _cachedString, "cpmu ildo18 :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("cpmu_ildo19", _cachedString, "cpmu ildo19 :\\s(.*)\\smA")
+
+  _resultList = _resultList :: cachePMUADCData("cpmu_ildo20", _cachedString, "cpmu ildo20 :\\s(.*)\\smA")
+    
+  _resultList = _resultList :: cachePMUADCData("cpmu_ildo21", _cachedString, "cpmu ildo21 :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("cpmu_ildo22", _cachedString, "cpmu ildo22 :\\s(.*)\\smA")
+
+  _resultList = _resultList :: cachePMUADCData("cpmu_vrtc", _cachedString, "cpmu vrtc :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("cpmu_irtc", _cachedString, "cpmu irtc :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("cpmu_tjint", _cachedString, "cpmu tjint :\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("cpmu_tcal", _cachedString, "cpmu tcal :\\s(.*)\\sOhm")
+
+  _resultList = _resultList :: cachePMUADCData("cpmu_tdev1", _cachedString, "cpmu tdev1 :\\s(.*)\\sOhm")
+  _resultList = _resultList :: cachePMUADCData("cpmu_tdev2", _cachedString, "cpmu tdev2 :\\s(.*)\\sOhm")
+  _resultList = _resultList :: cachePMUADCData("cpmu_tdie1", _cachedString, "cpmu tdie1 :\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("cpmu_tdie2", _cachedString, "cpmu tdie2 :\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("cpmu_tdie3", _cachedString, "cpmu tdie3 :\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("cpmu_tdie4", _cachedString, "cpmu tdie4 :\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("cpmu_tdie5", _cachedString, "cpmu tdie5 :\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("cpmu_tdie6", _cachedString, "cpmu tdie6 :\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("cpmu_tbuck9", _cachedString, "cpmu tbuck9 :\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("cpmu_tloadsw", _cachedString, "cpmu tloadsw :\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("cpmu_vbuck9", _cachedString, "cpmu vbuck9 :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("cpmu_ibuck9", _cachedString, "cpmu ibuck9 :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("cpmu_vbuck3_sw1", _cachedString, "cpmu vbuck3_sw1 :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("acorn_ground", _cachedString, "acorn ground :\\s(.*)\\smV")
+
+
+  _resultList = _resultList :: cachePMUADCData("acorn_vref", _cachedString, "acorn vref :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("acorn_vb", _cachedString, "acorn vb :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("acorn_vn", _cachedString, "acorn vn :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("acorn_vl", _cachedString, "acorn vl :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("acorn_vc", _cachedString, "acorn vc :\\s(.*)\\smV")
+
+  _resultList = _resultList :: cachePMUADCData("acorn_vin", _cachedString, "acorn vin :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("acorn_vp", _cachedString, "acorn vp :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("acorn_vh", _cachedString, "acorn vh :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("acorn_va", _cachedString, "acorn va :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("acorn_ia", _cachedString, "acorn ia :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("acorn_in", _cachedString, "acorn in :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("acorn_ip", _cachedString, "acorn ip :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("acorn_ih", _cachedString, "acorn ih :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("acorn_die_temp", _cachedString, "acorn die_temp :\\s(.*)\\sC")
+
+  _resultList = _resultList :: cachePMUADCData("yangtze_adc_vbus1", _cachedString, "yangtze vbus1 :\\s(.*)\\smV")
+  #_resultList = _resultList :: cachePMUADCData("yangtze_adc_vbus1lv", _cachedString, "yangtze vbus1lv :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("yangtze_adc_vbus2", _cachedString, "yangtze vbus2 :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("yangtze_adc_vbat", _cachedString, "yangtze vbat :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("yangtze_adc_vdd", _cachedString, "yangtze vdd :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("yangtze_adc_die_temp", _cachedString, "yangtze die_temp :\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("yangtze_adc_ibus", _cachedString, "yangtze ibus :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("yangtze_adc_ibat", _cachedString, "yangtze ibat :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("yangtze_adc_vldo", _cachedString, "yangtze vldo :\\s(.*)\\smV")
+
+
+  # _resultList = _resultList :: cachePMUADCData("gecko_vacc_ext", _cachedString, "gecko vacc_ext :\\s(.*)\\smV")
+  _resultList = _resultList :: cachePMUADCData("gecko_iacc_ext", _cachedString, "gecko iacc_ext :\\s(.*)\\smA")
+  _resultList = _resultList :: cachePMUADCData("gecko_tacc_ext", _cachedString, "gecko tacc_ext :\\s(.*)\\sC")
+  _resultList = _resultList :: cachePMUADCData("gecko_vref_ext", _cachedString, "gecko vref_ext :\\s(.*)\\smV")
+
+  _records = []
+  for item in _resultList {
+    parameter = {}
+    parameter.input = {}
+    parameter.input.customKey = item.value
+    parameter.name = item.name
+    parameter.testName=_testName
+    parameter.techName=_techName
+    _retObj = createRecord(parameter)
+    _records = _records :: _retObj.record
+  }
+  return _createResponseDict_v2(True,{},_records)
+
+}

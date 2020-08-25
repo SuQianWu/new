@@ -1,0 +1,111 @@
+#para : {input:{inputkey:inputkey},BeginIndex:1,EndIndex:116,SeperateString: "  0x"},output:["LCM_SN"]}
+# =>    {input==>用来传入待处理数据}
+# =>    {input:{fixedKey(sub function 中会调用的key名):realKey(从全局变量中取出对应的value与前面的fixedKey组成键值对传入作为参数)}}
+# =>    {output:["数组","将会在return时将回值与数组中item组成键值对返回"}
+# =>    {otherKey（随便取名）:"任意你需要的补充的key"}
+
+def calculateLcmSN(dicSetting)
+{
+    atlasLogInfo("parameter:",dicSetting)    
+    strReturnValue = ""
+    #Input string and output string
+    strInput =  dicSetting.input.inputkey
+    outPutKey = dicSetting.output[0]  
+    retDict = {
+      "result": True,
+      "output": { outPutKey : ""}
+    }
+    strOutput   =   "" 
+    strSeparateString   = dicSetting.SeperateString onError e -> strSeparateString = Nil
+    if (strSeparateString == Nil or strSeparateString == "")
+    {
+        Atlas.Log.error("The SeperateString string is Nil")
+        strReturnValue = "The SeperateString string is Nil."
+        atlasLogInfo("ReturnValue = ",strReturnValue)
+        retDict.result = False
+        return retDict
+    }
+    # Get the setting value
+    arrContent          =   []
+    if(strInput != Nil){
+        strInput            =   String_TrimSpace(strInput)
+        arrContent          =   Strings.tokenize(strInput,strSeparateString)
+    }
+    else{
+        Atlas.Log.error("The inputString is Nil")
+        strReturnValue = "The inputString is Nil, please check!"
+        atlasLogInfo("ReturnValue = ",strReturnValue)
+        retDict.result = False
+        return retDict      
+    }
+    iBeginIndex         =  numerify(dicSetting.BeginIndex) onError e -> iBeginIndex= 0
+    iEndIndex           =  numerify(dicSetting.EndIndex) onError e  ->  iEndIndex = size(arrContent)-1
+    #Combine
+    atlasLogInfo("BEGIN index is:",iBeginIndex,"END index is:",iEndIndex,"Array count is:",size(arrContent))
+    if (size(arrContent) > 0)
+    {
+        if (iBeginIndex >= 0 and iEndIndex < size(arrContent) and iBeginIndex <= iEndIndex)
+        {
+            for i in range(iBeginIndex,iEndIndex+1)
+            {
+                if(arrContent[i] == "" or arrContent[i] == Nil){
+                    atlasLogInfo("This index content is Nil:",arrContent[i],", Ignore it.")
+                }
+                else{
+                    strOutput = strOutput + stringify(decAscii2Str(Convert_HexStringToNumber(String_TrimSpace(arrContent[i]))))
+                }
+            }
+            atlasLogInfo("The LCM SN value from diags is: ", strOutput)
+            strReturnValue = strOutput
+        }
+        else
+        {
+            strReturnValue = "LCM SN format error."
+            Atlas.Log.error("LCM SN format error.")
+            atlasLogInfo("ReturnValue = ",strReturnValue)
+            retDict.result = False
+            return retDict 
+        }
+    }
+    else{
+            strReturnValue = "LCM SN format error."
+            Atlas.Log.error("LCM SN format error.")
+            atlasLogInfo("ReturnValue = ",strReturnValue)
+            retDict.result = False
+            return retDict 
+    }
+    atlasLogInfo("ReturnValue = ",strReturnValue)
+    retDict.output[outPutKey] = strReturnValue
+    return retDict    
+}
+
+#======================================================================================#
+
+def parseLCMSN(parameter) {
+  str_tmp = parameter.input.customKey onError e -> if True {
+    str_tmp = parameter.input.defaultKey
+  }
+  # UI_ShowMessage(str_tmp)
+
+  str_data = String_Replace(str_tmp, "  ", "")
+  str_data = String_Replace(str_data, "0x", "")
+  # str_displaySN = Convert_HexStringToString(str_data)
+  str_displaySN_raw = Atlas.call_plugin("ConvertPlugin", "hexStringToString", {"hexString": str_data})
+  str_displaySN_raw = FX_String_TrimSpace(str_displaySN_raw)
+  if size(str_displaySN_raw) > 74
+  {
+    str_displaySN = String_SubStringByFixLength(str_displaySN_raw, 45, 135)
+  }else{
+    str_displaySN = str_displaySN_raw
+  }
+
+   _retDict = {}
+   _retDict.result = True
+   _retDict.output = {
+    parameter.output[0] : str_displaySN_raw,
+    parameter.output[1] : str_displaySN
+  }
+  # UI_ShowMessage(stringify(_retDict.output))
+  return _retDict
+
+}

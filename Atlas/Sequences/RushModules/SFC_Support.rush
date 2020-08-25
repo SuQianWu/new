@@ -1,0 +1,46 @@
+def querySFC(parameter){
+    atlasLogInfo("querySFC parameter:",parameter)
+    bRet = True
+    attributeName = parameter.attributeName onError e -> if True {
+        attributeName = ""
+    }
+    serialnumber = parameter.input.customKey onError e -> if True {
+        serialnumber = parameter.input.defaultKey
+    }
+    serialnumber = Strings.splice(serialnumber,"+","%2B")
+    value = Atlas.call_plugin("SFCSupport","getAttribute",{"attributename": attributeName,"serialnumber": serialnumber})
+
+    writeUartLog(attributeName+"="+value,"RX ==> SFC","NOW")
+
+    atlasLogInfo("querySFC result:",attributeName,"=",value)
+    return _createResponseDict(bRet,{parameter.output[0] : value})
+}
+
+def slot(parameter){
+    bRet = True
+    fixture_id = parameter.fixtureID onError e-> fixture_id = "1"
+    head_id = parameter.headID onError e-> if True{
+        Atlas.Log.error("Need parameter headID!")
+        bRet = False
+    }
+    Atlas.add_fixture_id_and_test_head_id(fixture_id,head_id)
+    return _createResponseDict(bRet,{parameter.output[0] : head_id})
+}
+
+def FX_querySFC(parameter){
+    atlasLogInfo("querySFC parameter:",parameter)
+    bRet = True
+    attributeName = parameter.attributeName onError e -> if True {
+        attributeName = ""
+    }
+    serialnumber = parameter.input.customKey onError e -> if True {
+        serialnumber = parameter.input.defaultKey
+    }
+    # serialnumber = Strings.splice(serialnumber,"+","%2B")
+    value = Atlas.call_plugin("SFCSupport","getAttribute",{"attributename": attributeName,"serialnumber": serialnumber})
+
+    writeUartLog(attributeName+"="+value,"RX ==> SFC","NOW")
+
+    atlasLogInfo("querySFC result:",attributeName,"=",value)
+    return _createResponseDict(bRet,{parameter.output[0] : value})
+}

@@ -1,0 +1,699 @@
+def _removeObjAtList(arr, objToRemove) {
+    _returnArr = []
+
+    for _obj in arr{
+        if _obj <> objToRemove {            
+            _returnArr = _returnArr :: _obj            
+        }
+    }
+
+    return _returnArr
+}
+
+def _isObjInArr(desiredObj,arr) {
+    _found = False
+
+    for _obj in arr {
+        if _obj == desiredObj {            
+            _found = True
+            break
+        }       
+    }
+
+    return _found
+}
+
+def _lowerCaseKeysInWoleDict(inputDict) {
+
+    if isDictionary(inputDict) == True {
+
+        _returnDict = {}
+
+        for _key,_value in inputDict {
+
+            _value = _lowerCaseKeysInWoleDict(_value)
+
+            _lowercasedKey = Strings.tolower(_key)
+
+            _returnDict = _returnDict + {_lowercasedKey : _value}
+        }
+
+        return _returnDict
+    }
+
+    return inputDict
+}
+
+def StringTokenize(parameter) {
+
+    _string = parameter.inputstring.fixedkey 
+    _separator = parameter.input.separator
+
+    _tokens = tokenize(_string,_separator)
+
+    return _createResponseDict(True,{parameter.output[0] : _tokens})
+}
+
+def StringPrefixPostfix(parameter) {
+
+    _Str = _getValueFromMemory(parameter.input,"key")
+
+    _string = parameter.input.inputstring
+
+    _value = cformat("%s%s%s",_prefix,_string,_postfix)
+
+    return _createResponseDict(True,{parameter.output[0] : _value})
+}
+
+def StringCombineFromArray(parameter) {
+
+    _array = parameter.input.inputarray
+
+    _retStr = ""
+
+    for _item in _array {
+        _retStr = _retStr + _item
+    }
+
+    return _createResponseDict(True,{parameter.output[0] : _retStr})
+}
+
+def dealWithNVMData(strValue){
+    
+    strValue=Strings.splice(strValue, '\n', '\r')
+    strValue=Strings.splice(strValue, '\r\r', '\r')
+    arrCell=Strings.tokenize(strValue, '\r')
+    arrReturn=[]
+    for strCell in arrCell
+    {
+        if(Strings.location_of_substring(strCell, " : ") != Nil)
+        {
+            arrTemp = Strings.tokenize(strCell, " : ")
+            strTemp = stringify(arrTemp[-1:])
+            strTemp = strTemp[1: -1]
+            arrUnit     =   Strings.tokenize(strTemp, " ")
+            arrBits     =   arrUnit[0: size(arrUnit)]
+            for i in range(0, size(arrBits))
+            {
+                if (not Strings.isspace(arrBits[i]))
+                {
+                    strValue = choice(size(arrBits[i]) == 4, Strings.splice(arrBits[i], "0x", ""), Strings.splice(arrBits[i], "x", ""))
+                    if(size(strValue)< 2)
+                    {
+                        strValue = "0" + strValue
+                    }
+                    arrReturn = arrReturn + [strValue]                   
+                }
+            }
+        }
+    }
+    arrFinal = arrReturn
+    atlasLogInfo("arrFinal is: ",arrFinal)
+    return arrFinal
+}
+
+def addCheckDigit(serialNumber)
+{
+    atlasLogInfo("execute_functin: addCheckDigit")
+    digits = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+    length = size(serialNumber)
+    radix = 34
+    total = 0
+    index = 0
+    for index in range(1,length+1){
+        digit = serialNumber[length -index]
+        value = Strings.location_of_substring(digits,digit)
+        if(value == Nil){
+            Atlas.Log.error("Invalid digit, this digit can't be calculated")
+            dic_result = {"result": False,"CAMERA_SN": ""}
+            return dic_result
+        }
+        if (Bitops.bitAnd(index,1) == 1){
+            total = total + 3*value
+        }else{
+            total = total + value
+        }
+    }
+           
+    checkValue = total % radix
+    if (checkValue > 0)
+    {
+        checkDigit = digits[radix - checkValue]
+    }
+    else
+    {
+        checkDigit = "0"
+    }
+    serialNumber =serialNumber + checkDigit
+    atlasLogInfo("addCheckDigit result is",serialNumber)
+    dic_result = {"result": True,"CAMERA_SN": serialNumber}
+    return dic_result
+}
+
+def verifyCheckDigit(serial){
+    digits = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+    length = size(serial)
+    ridix = 34
+    total = 0
+    index = 0
+    for index in range(0,length){
+        digit = serial[length -index -1:length -index ]
+        value = Strings.location_of_substring(digits,digit)
+        # println("",index,value)
+        if (Bitops.bitAnd(index,1) == 1){
+            total = total + 3*value
+        }else{
+            total = total + value
+        }
+    }
+    return ((total % ridix) == 0)
+}
+
+def combineNVMForQT0(strSourceData, iStart, iDeleteLast)
+{
+    atlasLogInfo("execute_functin combineNVMForQT0")
+    dicRet = {"Status": True, "ReturnValue": ""}
+    strSourceData = Strings.splice(strSourceData, "\r", "")
+    arySeparateData = Strings.tokenize(strSourceData, "\n")
+    aryTemp = []
+    for index in range(0,size(arySeparateData))
+    {
+        strCell = arySeparateData[index]
+        aryRange = Strings.range_of_substring(strCell, " : ")
+        if(aryRange != Nil){
+            iPosition = aryRange[0]
+            iLength = aryRange[1]
+            if(iLength > 0 && iPosition+iLength <= size(strCell)){
+                strTemp = strCell[iPosition+iLength:]
+                aryUnit = Strings.tokenize(strTemp, " ")
+                for j in range(0,size(aryUnit))
+                {
+                    aryTemp = aryTemp + [aryUnit[j]]
+                }
+            }
+        }
+    }
+
+    if(iStart+iDeleteLast > size(aryTemp)){
+        Atlas.Log.error("The parametric value of combineNVMForQT0 isn't correct")
+        dicRet["Status"] = False
+        dicRet["ReturnValue"] = ""
+        return dicRet
+    }
+
+    strCamera = ""
+    for index in range(0,size(aryTemp)-iDeleteLast)
+    {
+        strData = aryTemp[index]
+        strData = choice(size(strData) == 4, Strings.splice(strData, "0x", ""), Strings.splice(strData, "x", ""))
+        strCamera = strCamera + strData
+    }
+    atlasLogInfo("The result of combineNVMForQT0 is",strCamera)
+    # return strCamera
+    dicRet["Status"] = True
+    dicRet["ReturnValue"] = strCamera
+    return dicRet
+}
+
+def lengthOfInt(iValue)
+{
+    atlasLogInfo("execute_functin lengthOfInt")
+    iLength = 1;
+    while(iValue >= 10){
+        iLength = iLength + 1
+        iValue = iValue/10
+    }
+    return iLength
+}
+
+def hexStringify(int_value,num_digits)
+{
+    if not isNumber(int_value) {
+        Atlas.Log.error("Int value provided to hexStringify is not a number!")
+        raise $#@!("HexStringifyException")
+    }
+
+    # Maximum supported int size in hex digits aka nibbles (64-bit)
+    max_nibbles = 16
+    hex_string = ""
+
+    if (num_digits > max_nibbles) {
+        padding = num_digits-max_nibbles
+        if (int_value < 0) {
+            hex_string = hex_string + ("F"*padding)
+        } else {
+            hex_string = hex_string + ("0"*padding)
+        }
+    }
+
+    for i in range(0,max_nibbles) {
+        int_to_convert = Bitops.bitLsl(int_value, i*4)
+        int_to_convert = Bitops.bitLsr(int_to_convert, (max_nibbles-1)*4)
+        hex_string = hex_string + intToHexDigit(int_to_convert)
+    }
+
+    # Auto-format option
+    if (num_digits <= 0) {
+        hex_string = autoFormatHexString(hex_string)
+    } else {
+        hex_string = hex_string[(num_digits*-1):]
+    }
+
+    return hex_string
+}
+
+def strToInt(strChar)
+{
+    atlasLogInfo("execute_functin: strToInt")
+    cChar = str2decAscii(strChar)
+    if(cChar >= str2decAscii("0") && cChar <= str2decAscii("9")){
+        return cChar - 48
+    }        
+    elsif(cChar >= str2decAscii("A") && cChar <= str2decAscii("Z")){
+        return cChar -55
+    }    
+    elsif(cChar >= str2decAscii("a") && cChar <= str2decAscii("z")){
+        return cChar - 87
+    }       
+    else{
+        return -1
+    }           
+}
+
+def intToStr(iInt)
+{
+    atlasLogInfo("execute_functin: intToStr")
+    if(iInt >= 0 && iInt <= 9){
+        return decAscii2Str(iInt + 48)
+    }        
+    elsif (iInt > 17 && iInt < 23){
+        return decAscii2Str(iInt + 56)
+    }   
+    elsif (iInt > 22 && iInt < 34){
+        return decAscii2Str(iInt + 57)
+    }       
+    else{
+        return decAscii2Str(iInt + 55)
+    }          
+}
+
+def decAscii2Str(dec){
+    dic = Atlas.call_plugin("RushSupplement","ascii2Str",{"ascii": dec})
+    return dic["returnValue"]
+}
+
+def str2decAscii(str){
+    dic = Atlas.call_plugin("RushSupplement","str2Ascii",{"string": str})
+    return dic["returnValue"]
+}
+def intToHexDigit(int_value)
+{
+    hex_digit_str = Nil
+    if (int_value > 15) {
+        Atlas.Log.error("Provided number is larger than a single hex digit!")
+        raise $#@!("HexStringifyException")
+    } else if (int_value == 15) {
+        hex_digit_str = "F"
+    } else if (int_value == 14) {
+        hex_digit_str = "E"
+    } else if (int_value == 13) {
+        hex_digit_str = "D"
+    } else if (int_value == 12) {
+        hex_digit_str = "C"
+    } else if (int_value == 11) {
+        hex_digit_str = "B"
+    } else if (int_value == 10) {
+        hex_digit_str = "A"
+    } else if ((int_value >= 0) && (int_value <= 9)) {
+        hex_digit_str = stringify(int_value)
+    }
+
+    return hex_digit_str
+}
+def calculate(strExpression)
+{
+    strExpression = "("+strExpression+")"
+    atlasLogInfo("Start execute: calculate(). Expression:",strExpression)
+    arrFormatExpression = []
+    iLen = size(strExpression)
+
+    # spite to array by numbers or operators
+    strOneNumber = ""
+    for i in range(0,iLen)
+    {
+        strChar = strExpression[i]
+        if(Strings.isdigit(strChar) or strChar==".")
+        {
+            strOneNumber = strOneNumber+strChar
+        }
+        else if(strChar == " ")
+        {
+            continue
+        }
+        else{
+            if(strOneNumber == ""){
+                arrFormatExpression = arrFormatExpression + [strChar]
+            }
+            else{
+                arrFormatExpression = arrFormatExpression + [strOneNumber]
+                arrFormatExpression = arrFormatExpression + [strChar]
+                strOneNumber = ""
+            }
+        }
+    }
+    if(strOneNumber != ""){
+        arrFormatExpression = arrFormatExpression + [strOneNumber]
+    }
+
+    #combine operators
+    arrNewFormatExpression = []
+    iEnd = -1
+    for i in range(0,size(arrFormatExpression))
+    {
+        if(i>iEnd)
+        {
+            objElement = arrFormatExpression[i]
+            if(Strings.isalpha(objElement) and size(objElement)==1)
+            {
+                szOperator = objElement
+                for j in range(i+1,size(arrFormatExpression))
+                {
+                    nextObjElement = arrFormatExpression[j]
+                    if(Strings.isalpha(nextObjElement) and size(nextObjElement)==1)
+                    {
+                        szOperator = szOperator+nextObjElement
+                        iEnd = j
+                    }
+                    else
+                    {
+                        break
+                    }
+                }
+                arrNewFormatExpression = arrNewFormatExpression + [szOperator]
+            }
+            else{
+                arrNewFormatExpression = arrNewFormatExpression + [objElement]
+            }
+        }
+    }
+
+    arrFormatExpression = arrNewFormatExpression
+    atlasLogInfo(" expression =",arrFormatExpression)
+
+    #Create RPN
+    arrHighPriority = ["%", "^", "!", "sin", "cos", "tan", "cot", "sec", "csc", "ln", "log", "abs", "E", "e"]
+    arrMidPriority = ["*","/"]
+    arrLowPriority = ["+","-"]
+    arrRPN = []
+    arrTempRPN = []
+    arrNewFormatExpression = arrFormatExpression
+    for index in range(0,size(arrFormatExpression)){
+        objElement = arrFormatExpression[index]
+        if(contains(arrHighPriority,objElement) or contains(arrMidPriority,objElement) or contains(arrLowPriority,objElement)){
+            objElementAddOne = arrFormatExpression[index+1]
+            if (contains(arrHighPriority,objElementAddOne) or 
+                contains(arrMidPriority,objElementAddOne) or 
+                contains(arrLowPriority,objElementAddOne))
+            {
+                arrNewFormatExpression =insertObject(arrNewFormatExpression,"(",index+1)
+                arrNewFormatExpression =insertObject(arrNewFormatExpression,")",index+4)
+            }
+        }
+    }
+    arrFormatExpression = arrNewFormatExpression
+
+    # Format the expression, add 0 before negative value
+    arrFormatExpression = completeExpression(arrFormatExpression)
+
+    # println(arrFormatExpression)
+    atlasLogInfo("The fromat expression array=",arrFormatExpression)
+
+    #Get new array： arrRPN
+    for objElement in arrFormatExpression{
+        if(toNumber(objElement)!= Nil or objElement == "("){
+            arrTempRPN = arrTempRPN + [objElement]
+        }else if(contains(arrHighPriority,objElement)){
+        
+            while(lastObject(arrTempRPN) != "(" and 
+                !contains(arrMidPriority,lastObject(arrTempRPN)) and 
+                !contains(arrLowPriority,lastObject(arrTempRPN)))
+            {
+                arrRPN = arrRPN + [lastObject(arrTempRPN)]
+                arrTempRPN = removeLastObject(arrTempRPN)
+            }
+            arrTempRPN = arrTempRPN + [objElement]
+        }else if(contains(arrMidPriority,objElement)){
+
+            while(lastObject(arrTempRPN) != "(" and 
+            !contains(arrLowPriority,lastObject(arrTempRPN)))
+            {
+                arrRPN = arrRPN + [lastObject(arrTempRPN)]
+                arrTempRPN = removeLastObject(arrTempRPN)
+            }
+            arrTempRPN = arrTempRPN + [objElement]
+        }else if(contains(arrLowPriority,objElement)){
+            while(lastObject(arrTempRPN) != "(")
+            {
+                arrRPN = arrRPN + [lastObject(arrTempRPN)]
+                arrTempRPN = removeLastObject(arrTempRPN)
+            }
+            arrTempRPN = arrTempRPN + [objElement]
+        }else if(objElement == ")"){
+
+            while(lastObject(arrTempRPN) != "(")
+            {
+                arrRPN = arrRPN + [lastObject(arrTempRPN)]
+                arrTempRPN = removeLastObject(arrTempRPN)
+            }
+            arrTempRPN = removeLastObject(arrTempRPN)
+        }
+    }
+    atlasLogInfo("The calculator array=",arrRPN)
+
+     # Pup and calculate each operator
+     arrBineryOperators = ["+","-","*","/","%","^","log","E","e"]
+     arrUnaryOperators = ["sin","cos","tan","cot","sec","csc","ln","abs"]
+     arrResult = []
+     for objElement in arrRPN{
+        if(toNumber(objElement)!=Nil){
+            arrResult = arrResult + [objElement]
+        }else if(contains(arrUnaryOperators,objElement)){
+            if(1>size(arrResult)){
+                return False
+            }
+            num1 = lastObject(arrResult)
+            arrResult = removeLastObject(arrResult)
+            result = calculateWithNumbers(objElement,num1,Nil)
+            if(isNil(result)){
+                return False
+            }else{
+                arrResult = arrResult+[result]
+            }
+        }else if(contains(arrBineryOperators,objElement)){
+            if(2>size(arrResult)){
+                return False
+            }
+            num2 = lastObject(arrResult)
+            arrResult = removeLastObject(arrResult)
+            num1 = lastObject(arrResult)
+            arrResult = removeLastObject(arrResult)
+            result = calculateWithNumbers(objElement,num1,num2)
+            if(isNil(result)){
+                return False
+            }else{
+                arrResult = arrResult+[result]
+            }
+        }
+    }
+    atlasLogInfo("The result array=",arrResult)
+    if(size(arrResult)!= 1){
+        return False
+    }
+    return arrResult[0]
+}
+def calculateWithNumbers(objOperator,num1,num2)
+{
+    num1 = toNumber(num1)
+    num2 = toNumber(num2)
+    dResult = Nil
+    if(objOperator == "+"){
+        dResult = num1+num2
+    }else if(objOperator == "-"){
+        dResult = num1-num2
+    }else if(objOperator == "*"){
+        dResult = (num1*1.0)*(num2*1.0)
+    }else if(objOperator == "/"){
+        if(num2 == 0){
+            return Nil
+        }
+        dResult = (num1*1.0)/(num2*1.0)
+    }else if(objOperator == "%"){
+        dResult = num1%num2
+    }else if(objOperator == "^"){
+        dResult = Math.pow(num1, num2) 
+    }else if(objOperator == "!"){
+        dResult = 1
+        for i in range(1,num1+1){
+            dResult = dResult*i
+        }
+    }else if(objOperator == "sin"){
+        dResult = Math.sin(num1)
+    }else if(objOperator == "cos"){
+        dResult = Math.cos(num1)
+    }else if(objOperator == "tan"){
+        dResult = Math.tan(num1)
+    }else if(objOperator == "cot"){
+        dResult = 1/Math.tan(num1)
+    }else if(objOperator == "sec"){
+        dResult = 1/Math.cos(num1)
+    }else if(objOperator == "csc"){
+        dResult = 1/Math.sin(num1)
+    }else if(objOperator == "ln"){
+        dResult = Math.log(num1)
+    }else if(objOperator == "log"){
+        dResult = Math.log(num2)/Math.log(num1)
+    }else if(objOperator == "abs"){
+        dResult = Math.fabs(num1)
+    }else if(objOperator == "E" or objOperator == "e"){
+        dResult = num1*Math.pow(10, num2) 
+    }
+    return dResult
+}
+
+def removeObject(arr,obj)
+{
+    if(arr == Nil or obj == Nil){
+        return arr
+    }else{
+        arrNew = []
+        for item in arr{
+            if(item != obj){
+                arrNew = arrNew+[item]
+            }
+        }
+        return arrNew
+    }
+}
+
+def contains(arr,value)
+{
+    bContains = False
+    for item in arr {
+        if (item == value) {
+            bContains = True
+            break
+        }
+    }
+    return bContains
+}
+def completeExpression(array){
+    iElement    = 0
+    # arrNewFormatExpression = array
+    for objElement in array
+    {
+        if((objElement == "+" or objElement == "-") and (0==iElement or array[iElement-1] =="("))
+        {
+            array = insertObject(array,0,iElement)
+            array = completeExpression(array)
+            break
+        }
+        iElement = iElement+1
+    }
+    return array
+}
+def toNumber(obj)
+{
+    number = Nil
+    number = numerify(obj)onError e -> return Nil
+    return number
+}
+
+def lastObject(arr)
+{
+    if(arr == Nil or size(arr)==0){
+        return Nil
+    }else{
+        return arr[size(arr)-1]
+    }
+}
+
+# Scott, 2017/09/21
+# Function: Remove the last object in array
+# Return:  Array
+# Parameter: 
+#       arr           Array    the input array(required)
+def removeLastObject(arr)
+{
+    if(arr == Nil or size(arr)==0){
+        return []
+    }
+    else{
+        return arr[:-1]
+    }
+}
+
+# Function: Insert one object into array at index
+# Return:  Array/Nil  
+# Parameter: 
+#       arr           Array    the input array(required)
+#       obj           Object   the object which need to insert (required)
+#       index         Number   the index which obj in arr (required)
+def insertObject(arr,obj,index)
+{
+    if(arr == Nil or obj == Nil){
+        return Nil
+    }else if(index <1){
+        return [obj]+arr
+    }else if(index < size(arr)){
+        return arr[0:index]+[obj]+arr[index:]
+    }else{
+        return arr + [obj]
+    }
+}
+
+# Function: Bring a up order to the array,return the seriation array
+# Return: array
+# Parameter:
+  # arrUndisposed, the object in array must be NSNumber type
+def sortArrayUp(arrUndisposed){
+    arrToRet = []
+    for i in range (0,size(arrUndisposed)){
+        if isNumber(arrUndisposed[i]){
+            arrToRet = arrToRet::arrUndisposed[i]
+            # println("arrToRet is: "+ stringify(arrToRet))
+        }else{
+            return Nil
+        }
+    }
+    for i in range(0, size(arrToRet)){
+        for j in range(i+1, size(arrToRet)){
+            if (arrToRet[i] <= arrToRet[j]){
+                arrToRet[i] = arrToRet[i]
+            }else{
+                temp = arrToRet[i]
+                arrToRet[i] = arrToRet[j]
+                arrToRet[j] = temp
+            }
+        }
+    }
+    return arrToRet
+}
+def calSTD(aryTemp){
+    if(aryTemp == Nil || size(aryTemp) == 0){
+        return Nil
+    }
+    numTemp = 0.0
+    numSum1 = 0.0
+    numSum2 = 0.0
+    iCount = size(aryTemp)
+    for index in range(0,iCount)
+    {
+        numTemp = aryTemp[index]
+        numSum1 = numSum1+numTemp*numTemp
+        numSum2 = numSum2+numTemp
+    }
+
+    numResult = Math.sqrt((iCount*numSum1-numSum2*numSum2)/(iCount*iCount))
+    atlasLogInfo("*****Std value is ",stringify(numResult))
+    return stringify(numResult)
+}

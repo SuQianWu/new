@@ -1,0 +1,85 @@
+def calculateARCSN(parameter){
+    # println("parameter:",parameter)
+    strPreValue = parameter.input.customKey onError e-> if True{
+        strPreValue = parameter.input.defaultKey
+    }
+    bFlip = parameter.flip onError e-> bFlip = False
+   
+    if(!isString(strPreValue) or strPreValue == ""){
+        return _createResponseDict(False,{dicSetting.output[0] : "NO DATA"})
+    }
+    strAll =  Strings.splice(strPreValue," ","")
+    strAll = Strings.splice(strAll,"0x","")
+
+    i = 0
+    tempStrNew = ""
+    while(i < size(strAll))
+    {
+        strOne = strAll[i:i+8]
+        strPart1 = strOne[0:2]
+        strPart2 = strOne[2:4]
+        strPart3 = strOne[4:6]
+        strPart4 = strOne[6:8]
+        if(bFlip){
+            tempStrNew = tempStrNew + strPart4 +" "+ strPart3 +" "+ strPart2 +" "+ strPart1 +" "
+        }else{
+            tempStrNew = tempStrNew + strPart1 +" "+ strPart2 +" "+ strPart3 +" "+ strPart4 +" "
+        }
+        i = i + 8
+    }
+    tempStrNew = tempStrNew[:size(tempStrNew)-1]
+
+    arrContent = tokenize(tempStrNew," ")
+    strOutput = ""
+    iBeginIndex = parameter.iBegin onError e-> iBeginIndex = 0
+    iEndIndex = parameter.iEnd onError e-> iEndIndex = size(arrContent)-1
+    if(size(arrContent) > 0)
+    {
+        if(iBeginIndex >= 0 && iEndIndex < size(arrContent) && iBeginIndex <= iEndIndex)
+        {
+            for i in range(iBeginIndex,iEndIndex+1)
+            {
+                valueTemp = arrContent[i]
+                decNumber = numerify("0x"+valueTemp)
+                strOutput = strOutput + decAscii2Str(decNumber)
+            }
+            atlasLogInfo("calculateARCSN get value: ",strOutput)
+        }
+        else{
+            return  _createResponseDict(False,{parameter.output[0]: "Setting format error"})
+        }            
+    }
+    return _createResponseDict(True,{parameter.output[0]: strOutput})
+}
+
+#======================================================================================#
+def parseArcData(parameter) {
+  str_pscl = parameter.input.customKey onError e -> if True {
+    str_pscl = parameter.input.defaultKey
+  }
+
+  if True
+  {
+    str_pscl = String_SubStringByPreAndPost(str_pscl, "", "")
+    arrayData = Func_StringToArray(str_pscl, 148)
+    str_ArcSn = Func_GetSubStringFromArray(arrayData, 6, 22)
+    str_ArcSn = Convert_HexStringToString(str_ArcSn)
+  } onError e -> str_ArcSn = ""
+  # bol_Check = Item_Config_CheckSpec("Read_ARC_SN",str_ArcSn)
+  # if bol_Check
+  # {
+  #   FX_AddAttribute("ALERT_SN", str_ArcSn)
+  # }
+  if True
+  {
+    str_arcCFG = Func_GetSubStringFromArray(arrayData, 23, 29)
+    str_arcCFG = Convert_HexStringToString(str_arcCFG)
+  } onError e -> str_arcCFG = ""
+  # bol_Check = Item_Config_CheckSpec("Read_ARC_Config",str_arcCFG)
+  # if bol_Check
+  # {
+  #   FX_AddAttribute("ALERT_CFG", str_arcCFG)
+  # }  
+
+  return _createResponseDict(True,{parameter.output[0] : str_ArcSn,parameter.output[1] : str_arcCFG})
+}

@@ -1,0 +1,43 @@
+def ezLink(parameter){
+    command = parameter.command
+
+    target = parameter.target onError e-> target = "ezLink"
+    dicDevice = Globals.system.stationTopology.units[Atlas.Unit.unit_identifier] onError e-> dicDevice = {}
+    port = dicDevice.unit_transports onError e-> if True{
+        Atlas.Log.error("openPort can not find device:",port)
+        return _createResponseDict(False,{})
+    }
+
+    ezLinkPath = parameter.path
+
+    writeUartLog(ezLinkPath+" "+port+" "+command,"TX ==> "+target,"NOW")
+    dicRet = Atlas.call_plugin("TaskSupport","EZLink",{"BSDPATH": port,"PATH": ezLinkPath,"COMMAND": command})
+    bRet = dicRet.result onError e-> bRet = False
+    returnValue = dicRet.returnValue onError e-> returnValue = ""
+    writeUartLog(returnValue,"RX ==> "+target,"NOW")
+    return _createResponseDict(bRet,{parameter.output[0]: returnValue})
+}
+
+def ezLink_setUartPath(parameter){
+
+    dicDevice = Globals.system.stationTopology.units[Atlas.Unit.unit_identifier] onError e-> dicDevice = {}
+    Globals.system.memory.uart_path = dicDevice.unit_transports onError e-> if True{
+        Atlas.Log.error("Can not find device uart path")
+        return _createResponseDict(False,{})
+    }
+
+    return _createResponseDict(True,{})
+}
+
+def set_Group_UartPath(parameter)
+{
+       
+    dicDevice = Globals.system.stationTopology.groups[0] onError e-> dicDevice = {}
+    dicDevice = dicDevice.units[Atlas.Unit.unit_identifier] onError e-> dicDevice = {}
+    Globals.system.memory.uart_path = dicDevice.unit_transports onError e-> if True{
+        Atlas.Log.error("Can not find device uart path")
+        return _createResponseDict(False,{})
+    }
+
+    return _createResponseDict(True,{})
+}

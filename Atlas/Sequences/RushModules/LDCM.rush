@@ -1,0 +1,206 @@
+
+def calculateLDCM(dicSetting){
+    outputKey = dicSetting.output[0]
+    retDict = {
+      "result": True,
+      "output": { outputKey : "" }
+    }
+
+    peakMagnitudeValue = numerify(dicSetting.input.peakMagnitude) onError e -> if True {
+            retDict = {
+              "result": False,
+              "output": { outputKey : "" }
+            }
+        }
+    vcorrValue = numerify(dicSetting.input.vcorr) onError e -> if True {
+            retDict = {
+              "result": False,
+              "output": { outputKey : "" }
+            }
+        }
+    vdeltaValue = numerify(dicSetting.input.vdelta) onError e -> if True {
+            retDict = {
+              "result": False,
+              "output": { outputKey : "" }
+            }
+        }
+
+    if(vdeltaValue <= 0){
+        temp1 = peakMagnitudeValue*vcorrValue*Math.pow(10, 12)*4.99
+        retDict.output[outputKey] = temp1
+    }
+    else{
+        temp1 = peakMagnitudeValue*vcorrValue/vdeltaValue*4.99
+        retDict.output[outputKey] = temp1
+    }
+    return retDict
+}
+
+def usbfsStart(dicContents)
+{
+    atlasLogInfo(formatString("+","USBF_TASK_START"))
+    atlasLogInfo("parameter:",dicContents)
+
+    strPath = dicContents.PATH#objectForKey(dicContents, "PATH")
+    arrArgs = dicContents.ARGS #objectForKey(dicContents, "ARGUMENTS")
+    if(strPath == Nil or strPath == "" or arrArgs == Nil or arrArgs == ""){
+        atlasLogInfo("PATH or ARGUMENTS not found")
+        return False
+    }
+    else{
+        dicFinalResult = Atlas.call_plugin("TaskSupport","communicateWithTask",{"PATH": strPath, "ARGS": arrArgs, "NoNeedResponse": True})
+        if(dicFinalResult["result"])
+        {
+            Globals.g_strReturnValue =dicFinalResult.returnValue #objectForKey(dicFinalResult, "returnValue")
+            atlasLogInfo(formatString("+","USBF_TASK_START"+stringify(True)))
+            return _createResponseDict(True,{})
+        }
+        else
+        {
+            atlasLogInfo(formatString("+","USBF_TASK_START"+stringify(False)))
+            return _createResponseDict(False,{})
+        }
+
+    }
+}
+def copyLog(dic){
+  files = dic.files
+  newnames = dic.newnames onError e -> if True {
+    newnames = files
+  }
+  for index in range(0,size(files)){
+    file = files[index]
+    newname = newnames[index]
+    cmd = "cp /users/gdlocal/documents/"+ Atlas.Unit.unit_identifier+"/"+ file +" " +Globals.system.memory.logStore+ newname
+    atlasLogInfo("cmd:" ,cmd)
+    rc = System.system(cmd)
+
+    #remove the original files from Documents
+    _cmd = "rm /users/gdlocal/documents/"+ Atlas.Unit.unit_identifier+"/"+ file
+    Atlas.Log.info("_cmd:" ,_cmd)
+    _rc = System.system(_cmd)
+  }
+  return _createResponseDict(True,{})
+}
+def sourceFile(dic){
+  rc = System.system("source /anaconda2/bin/activate /anaconda2")
+  atlasLogInfo("result:",rc)
+  return _createResponseDict(True,{})
+}
+def LDCMRenameLog(dic){
+  oldpath = dic.oldpath
+  newname = dic.newname
+
+  dicRet = Atlas.call_plugin("FileSystemPlugin","renameFile",{"path": oldpath , "newName": newname+".wav"})
+  return _createResponseDict(True,{})
+}
+
+#======================================================================================#
+def createLDCMTestRecords(parameter){
+
+  _testName=parameter.testName
+  _techName=parameter.techName
+  _openFreq = numerify(parameter.input.openFreq)
+  _openCH0 = numerify(parameter.input.ch0_peak)
+  _openCH1 = numerify(parameter.input.ch1_peak)
+  _amuxayFreq = numerify(parameter.input.amuxayFreq)
+  _amuxayCH0 = numerify(parameter.input.amuxayCH0)
+  _amuxayCH1 = numerify(parameter.input.amuxayCH1)
+  _amuaxyOpenFreq = numerify(parameter.input.amuaxyOpenFreq)
+  _amuxayOpenCH0 = numerify(parameter.input.amuxayOpenCH0)
+  _amuxayOpenCH1 = numerify(parameter.input.amuxayOpenCH1)
+  _unitConfig = parameter.category
+  _pattern = "6R3R|4R4R|3G18B|5G15WV|5G16BV|3G18Bs|2R5BD|5C2BV|2G19WD|2D3BD|6D2B|1G20R|1G21R|6F6W|3ITR1Ba|3ITR1Bb|3C4B|1C1B|1G23W|2G24WD|5Q2RV|2C3BD|6R6W|3D4|2G26R|2N12D|2N14D|6N18|2N19D"
+  _cfgConfig = False
+  _matches = Regex.matches(_unitConfig,_pattern,16)
+    if size(_matches)>0 {
+      _cfgConfig = True
+    }
+    
+    i_corr = ((_openCH0 + _openCH1)*0.5)/_openCH0
+    v_corr = ((_openCH0 + _openCH1)*0.5)/_openCH1
+    delta200K = _amuxayCH0*i_corr - _amuxayCH1*v_corr
+    if delta200K <= 0 {
+      delta200K = 0.000000000001
+    }
+    liq_amuxay = ((_amuxayCH1 * v_corr) / delta200K )* 6340/1000
+
+    deltaOpen =  _amuxayOpenCH0*i_corr - _amuxayOpenCH1*v_corr
+    if deltaOpen <= 0 {
+      deltaOpen = 0.000000000001
+    }
+    liq_open = ((_amuxayOpenCH1 * v_corr) /deltaOpen ) * 6340/1000
+
+
+    if _cfgConfig {
+      parameter = {}
+      parameter.input = {}
+      parameter.input.customKey = _amuxayFreq
+      parameter.name = "LDCM_amuxay_freq_cfg"
+      parameter.testName=_testName
+      parameter.techName=_techName
+      createRecord(parameter)
+
+      parameter = {}
+      parameter.input = {}
+      parameter.input.customKey = liq_amuxay
+      parameter.name = "LDCM_liq_amuxay_cfg"
+      parameter.testName=_testName
+      parameter.techName=_techName
+      createRecord(parameter)
+
+      parameter = {}
+      parameter.input = {}
+      parameter.input.customKey = _amuaxyOpenFreq
+      parameter.name = "LDCM_freq_open_cfg"
+      parameter.testName=_testName
+      parameter.techName=_techName
+      createRecord(parameter)
+
+      parameter = {}
+      parameter.input = {}
+      parameter.input.customKey = liq_open
+      parameter.name = "LDCM_liq_open_cfg"
+      parameter.testName=_testName
+      parameter.techName=_techName
+      createRecord(parameter)
+
+
+
+      
+    }else{
+      parameter = {}
+      parameter.input = {}
+      parameter.input.customKey = _amuxayFreq
+      parameter.name = "LDCM_amuxay_freq"
+      parameter.testName=_testName
+      parameter.techName=_techName
+      createRecord(parameter)
+
+      parameter = {}
+      parameter.input = {}
+      parameter.input.customKey = liq_amuxay
+      parameter.name = "LDCM_liq_amuxay"
+      parameter.testName=_testName
+      parameter.techName=_techName
+      createRecord(parameter)
+
+      parameter = {}
+      parameter.input = {}
+      parameter.input.customKey = _amuaxyOpenFreq
+      parameter.name = "LDCM_freq_open"
+      parameter.testName=_testName
+      parameter.techName=_techName
+      createRecord(parameter)
+
+      parameter = {}
+      parameter.input = {}
+      parameter.input.customKey = liq_open
+      parameter.name = "LDCM_liq_open"
+      parameter.testName=_testName
+      parameter.techName=_techName
+      createRecord(parameter)
+
+    }
+
+}

@@ -1,0 +1,122 @@
+def calculateYogiLimit(dicSetting)
+{
+    atlasLogInfo("parameter:",dicSetting)
+
+    numBuffer1 = 8.0/100
+    numBuffer2 = 20.0/100
+    numBuffer3 = 9.9/100
+    numBuffer4 = 1.0/100
+
+    numResol_ipulse = 10
+    numResol_isever = 10
+
+    #input 
+    strCalValue= dicSetting.input.calKey
+
+    #output
+    strIPULSEMAXLowerKey      = dicSetting.output[0]
+    strIPULSEMAXUpperKey      = dicSetting.output[1]
+    strISEVERELowerKey        = dicSetting.output[2]
+    strISEVEREUpperKey        = dicSetting.output[3]
+    retDict = {
+        "result" : True,
+        "output" : {}
+    }
+
+    numCalValue = numerify(strCalValue)
+
+    if(numCalValue == Nil){
+        Atlas.Log.error("CalValue is not number type!")
+        retDict.result = False
+        return retDict
+    }
+    else
+    {
+        if(numCalValue > 250 && numCalValue < 525)
+        {
+            numIPULSEMAX = Math.round(numCalValue*(1+numBuffer3)*(1+numBuffer4)/(1-numBuffer1)/numResol_ipulse)*numResol_isever
+            numSEL_IPULSEMAX = (numIPULSEMAX-100)/10
+            # SEL_IPULSEMAX_Limit = "["+stringify(numSEL_IPULSEMAX)+","+stringify(numSEL_IPULSEMAX)+"]"
+            retDict.output[strIPULSEMAXLowerKey] = stringify(numSEL_IPULSEMAX)
+            retDict.output[strIPULSEMAXUpperKey] = stringify(numSEL_IPULSEMAX)
+
+            numIPULSEMAX_MAX =numIPULSEMAX*(1+numBuffer1)
+            numISEVERE = Math.round(numIPULSEMAX_MAX*(1+numBuffer4)/(1-numBuffer2)/numResol_ipulse)*numResol_isever
+            numSEL_ISEVERE = (numISEVERE-100)/10
+            # SEL_ISEVERE_Limit = "["+stringify(numSEL_ISEVERE)+","+stringify(numSEL_ISEVERE)+"]"
+            retDict.output[strISEVERELowerKey] = stringify(numSEL_ISEVERE)
+            retDict.output[strISEVEREUpperKey] = stringify(numSEL_ISEVERE)
+        }
+        else
+        { 
+            Atlas.Log.error("CalValue value is out of range, so can't calculate the limit for YOGI!")
+            retDict.result = False
+        }
+    }
+    return retDict
+}
+
+
+
+def doYogiLoop(dicSetting)
+{
+    atlasLogInfo("dicSetting###",dicSetting)
+    
+    bSubRet = True
+    iStartTime = System.now()
+    iTimeOut = 5
+    iEndTime = 0.0
+
+    Yogi_Temp_Value = ""
+    strResult = ""
+    resultValue = ""
+    while True
+    {
+        if(iEndTime > iTimeOut)
+        {
+            bSubRet = False
+            break
+        }
+        response = Atlas.call_plugin("Dut", "sendCommand", {"command": "i2c -d 4 0x33 0x32 1"}) onError e -> if True {
+             if e.message<>"Test failed" {
+                    raise e
+                }
+            }
+        pattern = "Data:\\s*0x(.{2})"
+        groups = Regex.groups(response, pattern, 8)
+        resultCatch = Nil
+
+        if size(groups) > 0 {
+            resultCatch = groups[0]
+        }  
+        else {
+            resultCatch = ""
+        }
+
+        #_result = String_TrimSpace(_result)
+        resultCatch = Regex.replace(resultCatch, "^\\s+", "", 16)
+        resultCatch = Regex.replace(resultCatch, "\\s+$", "", 16)
+        
+        Yogi_Temp_Value = convertNumberToBin(Convert_HexStringToNumber(resultCatch))
+        iLength = size(Yogi_Temp_Value)
+        if (iLength < 8){
+            for i in range(0,8-iLength){
+                Yogi_Temp_Value = "0" + Yogi_Temp_Value
+            }
+        }
+        strResult = Yogi_Temp_Value[1:2]
+        if (strResult == "0")
+        {
+            resultValue = "0"
+            break
+        }
+        iEndTime = System.now()-iStartTime
+    }
+    retDict = {
+        "result" : bSubRet,
+        "output" : {dicSetting.output[0]: Yogi_Temp_Value,
+            dicSetting.output[1]: resultValue
+        }
+    }
+    return retDict
+}

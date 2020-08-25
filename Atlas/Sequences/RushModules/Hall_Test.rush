@@ -1,0 +1,332 @@
+FX_hallTest (parameter) {
+  # commands = parameter.command
+
+  _command = parameter.command
+
+  _key_flap_south_trigger_distance = parameter.output[0]
+  _key_flap_south_release_distance = parameter.output[1]
+  _key_flap_south_hysteresis = parameter.output[2]
+
+  float_distance = 8.5
+  triggerDis = -999
+  releaseDis = -999
+
+  while float_distance >= 4.75
+  {
+    trigger_0 = Unit_SendAndGet_v2(_command)
+    trigger_0 = String_SubStringByPreAndPost(trigger_0, "] =", "OK")
+    str_triggerDis = float_distance
+    if trigger_0 == "0"
+    {
+      _retStr = Fixture_SendAndGet_v2("read magnet location")
+      _currLocatoin = numerify(String_SubStringByPreAndPost(_retStr,"Magnet Location is: "," MM"))
+      triggerDis = _currLocatoin
+      # triggerDis = str_triggerDis
+      break
+    }
+
+    Fixture_SendAndGet_v2("Magnet Step Down")
+    System.sleep(0.1)
+    float_distance = float_distance - 0.25
+  }
+  triggerDis = stringify(triggerDis)
+  # triggerDistance = Convert_StringToNumber(triggerDis)
+  triggerDistance = numerify(triggerDis)
+  # Item_Config_CheckRange("Flap_South_Trigger_distance", triggerDistance)
+  # cacheToShareDict(shareDict,_key_flap_south_trigger_distance,triggerDistance)
+
+  Fixture_SendAndGet_v2("Move Magnet to 1.4")
+  System.sleep(0.1)
+  Fixture_SendAndGet_v2("Move Magnet to 5.5")
+  System.sleep(0.1)
+
+  _retry = 3
+
+  while _retry>0 {
+    _retStr = Fixture_SendAndGet_v2("read magnet location")
+    _currLocatoin = numerify(String_SubStringByPreAndPost(_retStr,"Magnet Location is: "," MM"))
+    if _currLocatoin<>5.5 {
+      Fixture_SendAndGet_v2("Move Magnet to 5.5")    
+    }
+    else {
+      break;
+    }
+    _retry = _retry - 1
+  }
+
+
+
+  if triggerDis != "0"
+  {
+    float_distance = 5.5
+    Fixture_SendAndGet_v2("Set Magnet Step 0.25")
+    while float_distance <= 10.25
+    {
+      Fixture_SendAndGet_v2("Magnet Step Up")
+      System.sleep(0.1)
+      float_distance = float_distance + 0.25
+
+      trigger_0 = Unit_SendAndGet_v2(_command)
+      trigger_0 = String_SubStringByPreAndPost(trigger_0, "] =", "OK")
+
+      str_releaseDis = float_distance
+
+      if trigger_0 == "1"
+      {
+        _retStr = Fixture_SendAndGet_v2("read magnet location")
+        _currLocatoin = numerify(String_SubStringByPreAndPost(_retStr,"Magnet Location is: "," MM"))        
+        releaseDis = _currLocatoin
+        # releaseDis = str_releaseDis      
+        break
+      }
+    }
+  }
+
+  releaseDistance = stringify(releaseDis)
+  # releaseDis = Convert_StringToNumber(releaseDistance)
+  releaseDis =  numerify(releaseDistance)
+  hes2_Hysteresis = releaseDis - triggerDistance
+  # cacheToShareDict(shareDict,_key_flap_south_release_distance,releaseDis)
+  # cacheToShareDict(shareDict,_key_flap_south_hysteresis,hes2_Hysteresis)
+  # Item_Config_CheckRange("Flap_South_Release_distance", releaseDis)
+  # Item_Config_CheckRange("Flap_South_Hysteresis", hes2_Hysteresis)
+
+  _retDict = {}
+  _retDict.result = True
+  _retDict.output = {}
+
+  _retDict.output = {
+    parameter.output[0] : triggerDistance,
+    parameter.output[1] : releaseDis,
+    parameter.output[2] : hes2_Hysteresis
+  }
+
+  return _retDict  
+
+}
+
+FX_hallTest_legacy (parameter) {
+  # commands = parameter.command
+
+  _command = parameter.command
+
+  _trigger_start_height = parameter.trigger_start_height
+  _release_start_height = parameter.release_start_height
+
+  _key_flap_south_trigger_distance = parameter.output[0]
+  _key_flap_south_release_distance = parameter.output[1]
+  _key_flap_south_hysteresis = parameter.output[2]
+
+  _distance_str = stringify(_trigger_start_height)
+  _distance_str =Regex.groups(_distance_str, "^(\\d+\\.\\d*?[1-9]?)0+$", 16)[0]
+
+  _cmd = cformat("Move Magnet to %s",_distance_str)
+
+  Fixture_SendAndGet_v2(_cmd) 
+
+  float_distance = _trigger_start_height
+  triggerDis = -999
+  releaseDis = -999
+
+  while float_distance >= 4.75
+  {
+    trigger_0 = Unit_SendAndGet_v2(_command)
+    trigger_0 = String_SubStringByPreAndPost(trigger_0, "] =", "OK")
+    str_triggerDis = float_distance
+    if trigger_0 == "0"
+    {
+      triggerDis = str_triggerDis
+      break
+    }
+
+    Fixture_SendAndGet_v2("Magnet Step Down")
+    System.sleep(0.1)
+    float_distance = float_distance - 0.25
+  }
+  triggerDis = stringify(triggerDis)
+  # triggerDistance = Convert_StringToNumber(triggerDis)
+  triggerDistance = numerify(triggerDis)
+  # Item_Config_CheckRange("Flap_South_Trigger_distance", triggerDistance)
+  # cacheToShareDict(shareDict,_key_flap_south_trigger_distance,triggerDistance)
+
+  _distance_str = stringify(_release_start_height)
+  _distance_str =Regex.groups(_distance_str, "^(\\d+\\.\\d*?[1-9]?)0+$", 16)[0]
+
+  Fixture_SendAndGet_v2("Move Magnet to 1.4")
+  System.sleep(0.1)
+  _cmd = cformat("Move Magnet to %s",_distance_str)
+  Fixture_SendAndGet_v2(_cmd)
+  System.sleep(0.1)
+
+  _retry = 3
+
+  while _retry>0 {
+    _retStr = Fixture_SendAndGet_v2("read magnet location")
+    _currLocatoin = numerify(String_SubStringByPreAndPost(_retStr,"Magnet Location is "," mm"))
+    if _currLocatoin<>_release_start_height {
+      _cmd = cformat("Move Magnet to %s",_distance_str)
+      Fixture_SendAndGet_v2(_cmd)    
+      System.sleep(0.1)
+    }
+    else {
+      break;
+    }
+    _retry = _retry - 1
+  }
+
+
+
+  if triggerDis != "0"
+  {
+    float_distance = _release_start_height
+    Fixture_SendAndGet_v2("Set Magnet Step 0.25")
+    while float_distance <= 10.25
+    {
+      Fixture_SendAndGet_v2("Magnet Step Up")
+      System.sleep(0.1)
+      float_distance = float_distance + 0.25
+
+      trigger_0 = Unit_SendAndGet_v2(_command)
+      trigger_0 = String_SubStringByPreAndPost(trigger_0, "] =", "OK")
+
+      str_releaseDis = float_distance
+
+      if trigger_0 == "1"
+      {
+        releaseDis = str_releaseDis
+        break
+      }
+    }
+  }
+
+  releaseDistance = stringify(releaseDis)
+  # releaseDis = Convert_StringToNumber(releaseDistance)
+  releaseDis =  numerify(releaseDistance)
+  hes2_Hysteresis = releaseDis - triggerDistance
+  # cacheToShareDict(shareDict,_key_flap_south_release_distance,releaseDis)
+  # cacheToShareDict(shareDict,_key_flap_south_hysteresis,hes2_Hysteresis)
+  # Item_Config_CheckRange("Flap_South_Release_distance", releaseDis)
+  # Item_Config_CheckRange("Flap_South_Hysteresis", hes2_Hysteresis)
+
+  _retDict = {}
+  _retDict.result = True
+  _retDict.output = {}
+
+  _retDict.output = {
+    parameter.output[0] : triggerDistance,
+    parameter.output[1] : releaseDis,
+    parameter.output[2] : hes2_Hysteresis
+  }
+
+  return _retDict  
+
+}
+
+
+
+FX_hallTest_D32 (parameter) {
+  # commands = parameter.command
+
+  _command = parameter.command
+
+  _key_flap_south_trigger_distance = parameter.output[0]
+  _key_flap_south_release_distance = parameter.output[1]
+  _key_flap_south_hysteresis = parameter.output[2]
+
+  float_distance = 18.25
+  triggerDis = -999
+  releaseDis = -999
+
+  while float_distance >= 5.5
+  {
+    trigger_0 = Unit_SendAndGet_v2(_command)
+    trigger_0 = String_SubStringByPreAndPost(trigger_0, "] =", "OK")
+    str_triggerDis = float_distance
+    if trigger_0 == "0"
+    {
+      _retStr = Fixture_SendAndGet_v2("read magnet location")
+      _currLocatoin = numerify(String_SubStringByPreAndPost(_retStr,"Magnet Location is: "," MM"))
+      triggerDis = _currLocatoin
+      # triggerDis = str_triggerDis
+      break
+    }
+
+    Fixture_SendAndGet_v2("Magnet Step Down")
+    System.sleep(0.1)
+    float_distance = float_distance - 0.25
+  }
+  triggerDis = stringify(triggerDis)
+  # triggerDistance = Convert_StringToNumber(triggerDis)
+  triggerDistance = numerify(triggerDis)
+  # Item_Config_CheckRange("Flap_South_Trigger_distance", triggerDistance)
+  # cacheToShareDict(shareDict,_key_flap_south_trigger_distance,triggerDistance)
+
+  Fixture_SendAndGet_v2("Move Magnet to 1.4")
+  System.sleep(0.1)
+  Fixture_SendAndGet_v2("Move Magnet to 6.5")
+  System.sleep(0.1)
+
+  _retry = 3
+
+  while _retry>0 {
+    _retStr = Fixture_SendAndGet_v2("read magnet location")
+    _currLocatoin = numerify(String_SubStringByPreAndPost(_retStr,"Magnet Location is: "," MM"))
+    if _currLocatoin<>6.5 {
+      Fixture_SendAndGet_v2("Move Magnet to 6.5")    
+    }
+    else {
+      break;
+    }
+    _retry = _retry - 1
+  }
+
+
+
+  if triggerDis != "0"
+  {
+    float_distance = 6.5
+    Fixture_SendAndGet_v2("Set Magnet Step 0.25")
+    while float_distance <= 20.25
+    {
+      Fixture_SendAndGet_v2("Magnet Step Up")
+      System.sleep(0.1)
+      float_distance = float_distance + 0.25
+
+      trigger_0 = Unit_SendAndGet_v2(_command)
+      trigger_0 = String_SubStringByPreAndPost(trigger_0, "] =", "OK")
+
+      str_releaseDis = float_distance
+
+      if trigger_0 == "1"
+      {
+        _retStr = Fixture_SendAndGet_v2("read magnet location")
+        _currLocatoin = numerify(String_SubStringByPreAndPost(_retStr,"Magnet Location is: "," MM"))        
+        releaseDis = _currLocatoin
+        # releaseDis = str_releaseDis      
+        break
+      }
+    }
+  }
+
+  releaseDistance = stringify(releaseDis)
+  # releaseDis = Convert_StringToNumber(releaseDistance)
+  releaseDis =  numerify(releaseDistance)
+  hes2_Hysteresis = releaseDis - triggerDistance
+  # cacheToShareDict(shareDict,_key_flap_south_release_distance,releaseDis)
+  # cacheToShareDict(shareDict,_key_flap_south_hysteresis,hes2_Hysteresis)
+  # Item_Config_CheckRange("Flap_South_Release_distance", releaseDis)
+  # Item_Config_CheckRange("Flap_South_Hysteresis", hes2_Hysteresis)
+
+  _retDict = {}
+  _retDict.result = True
+  _retDict.output = {}
+
+  _retDict.output = {
+    parameter.output[0] : triggerDistance,
+    parameter.output[1] : releaseDis,
+    parameter.output[2] : hes2_Hysteresis
+  }
+
+  return _retDict  
+
+}

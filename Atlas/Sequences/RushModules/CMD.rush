@@ -1,0 +1,31 @@
+def Delete(){
+  reDic = {
+    "result" : True,
+    "output" : {}
+  }
+
+  atlasLogInfo("Delete ###","rm /Users/gdlocal/.logs/BlueRestore.log")
+  System.system("rm /Users/gdlocal/.logs/BlueRestore.log")
+
+  return reDic
+}
+
+def Record(){
+  reDic = {
+    "result" : True,
+    "output" : {}
+  }
+
+CMD = "cp "+"/Users/gdlocal/.logs/BlueRestore.log "+Atlas.Unit.working_dir+"/AtlasLogs/"
+
+atlasLogInfo("Record ###",CMD)
+System.system(CMD)
+
+
+
+  return reDic
+}
+
+
+
+

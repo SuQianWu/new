@@ -1,0 +1,240 @@
+# Function: sendCommand to NFC Device From DTB
+# e.g. dicSetting  dictonary
+# =>   timeout    : number
+#      command    : string   the command to send to NFC
+#     ignoreResp  : String    read data or not, 1 not read ,else read
+#      output     : array      outputDic list ,save the receive data to output[0]
+# Return:  booleans Value: TrueFalse
+
+def SendCmdToNFC(dicSetting){
+  clearUartBuffer()
+  reDic = {
+    "result" : True,
+    "output" : {}
+  }
+  iTimeout = numerify(dicSetting.timeout) onError e -> if True {iTimeout = 5}
+  cmd = dicSetting.command onError e -> if True {cmd = ""}
+  cmd = String_TrimSpace(cmd)
+  if (cmd == ""){
+    return reDic
+  }
+  outputKey = dicSetting.output[0]
+  ignoreResp = dicSetting.ignoreResp onError e -> if True {ignoreResp = 0}
+  cmdLen = size(cmd)+1
+  sendCmd = "DAT:"+ stringify(cmdLen) + " " + cmd
+
+  atlasLogInfo("baker log: sendCmd",sendCmd)
+  dicSetting.command = sendCmd
+  dicSetting.timeout = iTimeout
+
+  response = Atlas.call_plugin("Fixture","sendCommand",dicSetting) onError e-> response = ""
+
+  if (Strings.range_of_substring(response,"OK") == Nil ){
+    outputDic = {outputKey:""}
+    reDic = {
+      "result" : False,
+      "output" : outputDic
+    }
+    return reDic
+  }
+  if (numerify(ignoreResp) == 1){
+    return reDic
+  }
+  return readFromNFC(dicSetting)
+}
+
+
+
+def readFromNFC(dicSetting){
+    iTimeout = dicSetting.timeout onError e -> if True {iTimeout = 5}
+    outputKey = dicSetting.output[0]
+    iStartTime = System.now()
+    bRes = True
+    iEndTime = 0.0
+    readyRes = Atlas.call_plugin("Fixture","sendCommand",{"command": "REQ:DATAREADY?","timeout":iTimeout}) onError e-> readyRes = ""
+
+    while (True) {
+      if (Strings.range_of_substring(readyRes, "YES") != Nil){
+          break
+      }
+      # atlasLogInfo("baker log: readyRes",readyRes)
+      if (iEndTime > iTimeout){
+        reDic = {
+          "result" : False,
+          "output" : {outputKey:""}
+        }
+        return reDic
+      }
+      tmpRes = Atlas.call_plugin("Fixture","sendCommand",{"command": "REQ:DATAREADY?","timeout":iTimeout}) onError e-> tmpRes = ""
+      readyRes = readyRes + tmpRes
+      iEndTime = System.now()-iStartTime
+    }
+
+    nfcRes = ""
+    bResult = True
+
+    System.sleep(0.05)
+
+    Atlas.call_plugin("Fixture","sendCommand",{"command": "kk","timeout":0,"ignoreResp":1}) onError e-> if True {
+     atlasLogInfo("katherine log: send kk error")
+     reDic = {
+       "result"  : False,
+       "resStr"  : "",
+       "dataLen" : 0
+     }
+     }
+     System.sleep(0.05)
+     nfcRes = Atlas.call_plugin("Fixture","read",{"delimiter": "RECOGNIZED\n","timeout":iTimeout}) onError e-> nfcRes = ""
+
+
+    Atlas.call_plugin("Fixture","sendCommand",{"command": "DAT:1 H","timeout":0,"ignoreResp":1}) onError e-> if True {
+     atlasLogInfo("katherine log: send DAT error")
+      reDic = {
+       "result"  : False,
+       "resStr"  : "",
+       "dataLen" : 0
+      }
+     }
+     System.sleep(0.05)
+     nfcRes = Atlas.call_plugin("Fixture","read",{"delimiter": "OK\n","timeout":iTimeout}) onError e-> nfcRes = ""
+
+
+    Atlas.call_plugin("Fixture","sendCommand",{"command": "REQ:READ?","timeout":0,"ignoreResp":1}) onError e-> if True {
+         atlasLogInfo("katherine log: send REQ:READ? error")
+         reDic = {
+           "result"  : False,
+           "resStr"  : "",
+           "dataLen" : 0
+         }
+         return reDic
+     }
+
+    System.sleep(0.5)
+    nfcRes = Atlas.call_plugin("Fixture","read",{"delimiter": "OK\n","timeout":iTimeout}) onError e-> nfcRes = ""
+
+    atlasLogInfo("baker log: Rx :"+nfcRes)
+
+    reDic = {
+      "result" : bResult,
+      "output" : {outputKey:nfcRes}
+    }
+    return reDic
+}
+
+
+
+def clearUartBuffer(){
+  nCount = 0
+  while (True) {
+      tmpRes = Atlas.call_plugin("Fixture","read",{"ignoreResp":1,"timeout":0.0001}) onError e-> tmpRes = ""
+      if (tmpRes == Nil){
+        tmpRes = ""
+      }
+      #atlasLogInfo("katherine log: tmpRes ",tmpRes)
+      if size(tmpRes)<=0{
+        nCount = nCount +1
+        if nCount > 2 {
+          break
+        }
+      }else{
+        nCount = 0
+      }
+  }
+}
+
+def JudgeResultLED(dicSetting) {
+    finalResult = Globals.system.bFinalResult
+    atlasLogInfo("AAA final result ",finalResult)
+    passCMD = dicSetting.PassCMD
+    failCMD = dicSetting.FailCMD
+    response = ""
+    if finalResult == :FALSE:{
+        response = Atlas.call_plugin("Dut", "sendCommand", {"command":passCMD})
+    }else{
+        response = Atlas.call_plugin("Dut", "sendCommand", {"command":failCMD})
+    }
+    return _createResponseDict(True,{dicSetting.output[0] : response})
+}
+
+
+def DetectNFCDevice(dicSetting){
+  iTimeout = numerify(dicSetting.timeout) onError e -> if True {iTimeout = 10}
+  dicSetting.timeout = iTimeout
+  iStartTime = System.now()
+  iEndTime = 0.0
+  readyRes = Atlas.call_plugin("Fixture","sendCommand",{"command": "REQ:CARDREADY?","timeout":0.5}) onError e-> readyRes = ""
+  while (True) {
+    if (Strings.range_of_substring(readyRes, "YES") != Nil){
+        break
+    }
+
+    if (iEndTime > iTimeout){
+      reDic = {
+        "result" : False,
+        "output" : {}
+      }
+      return reDic
+    }
+    tmpRes = Atlas.call_plugin("Fixture","sendCommand",{"command": "REQ:CARDREADY?","timeout":0.5}) onError e-> tmpRes = ""
+    readyRes = readyRes + tmpRes
+    iEndTime = System.now()-iStartTime
+  }
+  reDic = {
+    "result" : True,
+    "output" : {}
+  }
+  return reDic
+}
+
+def ReWriteCommand(dicSetting)
+{
+  Message = ""
+  InitDic = {
+    "Command" : "Hsysconfig init",
+    "TimeOut" : "10"
+  }
+  Initresponse = Atlas.call_plugin("Fixture","sendCommand",InitDic) onError e-> response = ""
+  if (Strings.range_of_substring(Initresponse,"OK") == Nil )
+  {
+    Message = Message + "Hsysconfig Init Failed!"
+    reDic = {
+      "result" : False,
+      "output" : Message
+    }
+  }
+  else
+  {
+    Message = Message + "Hsysconfig Init Passed!"
+    reDic = {
+      "result" : True,
+      "output" : Message
+    }
+  }
+  reDicSetting = {
+    "Command" : "Hsysconfig write --key SrNm --value ",
+    "TimeOut" : "10"
+  }
+  _Write_SN = dicSetting.Write_SN
+
+  reDicSetting.Command = reDicSetting.Command + _Write_SN
+
+  response = Atlas.call_plugin("Fixture","sendCommand",reDicSetting) onError e-> response = ""
+
+  if (Strings.range_of_substring(response,"OK") == Nil ){
+    Message = Message + "Write SN To NFC Failed!"
+    reDic = {
+      "result" : False,
+      "output" : Message
+      }
+      return reDic
+    }
+    else
+    {
+      Message = Message + "Write SN To NFC Passed!"
+      reDic = {
+      "result" : True,
+      "output" : Message
+      }
+    }
+  return reDic
+}

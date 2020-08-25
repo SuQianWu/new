@@ -1,0 +1,473 @@
+Func_GetDataForMatrix(str_RawData, str_Prefix, str_Postfix,int_Position)
+{
+  substring = String_SubStringByPreAndPost(str_RawData, str_Prefix, str_Postfix)
+  arr_Data = tokenize(substring, " ")
+  return arr_Data[int_Position-1]
+}
+
+Func_GetRxCLSyscfgValue(rawData)
+{
+
+  str_version = "00 02"
+  str_Reserved = "00 00 00 00 00 00 00 00 00 00 00"
+  str_RxCL = ""
+  str_checkSum = ""
+  str_tmp = String_SubStringByPreAndPost(rawData, "00000070: ", "OK")
+  atlasLogInfo("str_tmp = ",str_tmp)
+  # str_tmp = String_SubStringByFixLength(str_tmp, 0, 47)
+  str_tmp = str_tmp[0:47]
+  arr_rlt = tokenize(str_tmp, " ")
+  str_RxCL = str_version + " " + arr_rlt[0] + " " + arr_rlt[1] + " " + str_Reserved + " "
+  arr_Rxcl = tokenize(str_RxCL, " ")
+  int_sum = 0
+  for i in range(0, size(arr_Rxcl))
+  {
+    str_value = "0x" + arr_Rxcl[i]
+    int_value = Convert_HexStringToNumber(str_value)
+    int_sum = int_sum + int_value
+  }
+  int_sum = stringify(int_sum)
+  # int_sum = Regex_FirstMatchOfSubpattern(int_sum, "^(\\d+)\\.?")[1]
+  int_sum = Regex.matches(int_sum, "^(\\d+)\\.?", 16)[0]
+  int_sum = numerify(int_sum)
+  int_checkSum = 65536 - int_sum % 65536
+  int_checkSum = Convert_NumberToHexString(int_checkSum)
+  int_checkSum = Strings.tolower(int_checkSum)
+  if size(int_checkSum) > 2
+  {
+    # str_checkSum = String_SubStringByFixLength(int_checkSum, 2, 2)
+    str_checkSum = int_checkSum[2:4]
+  }
+  str_RxCL = str_RxCL + str_checkSum
+  return str_RxCL
+}
+
+Func_Transfer_RegisterValue_Syscfg(rawData, str_Prefix, str_Postfix)
+{
+  rawData = String_SubStringByPreAndPost(rawData, str_Prefix, str_Postfix)
+  rawData = String_TrimSpace(rawData)
+  arr_rlt = tokenize(rawData, " ")
+  size_key = size(arr_rlt)
+  str_rlt = ""
+  if size_key > 0
+  {
+    int_model = size_key % 4
+    if int_model > 0
+    {
+      for j in range(0, 4 - int_model)
+      {
+        arr_rlt = arr_rlt + ["0x00"]
+      }
+      size_key = size_key + 4 - int_model
+    }
+    for i in range(0, size_key, 4)
+    {
+      str_tmp = " 0x"
+      str_tmp = str_tmp + String_Replace(arr_rlt[i + 3], "0x", "")
+      str_tmp = str_tmp + String_Replace(arr_rlt[i + 2], "0x", "")
+      str_tmp = str_tmp + String_Replace(arr_rlt[i + 1], "0x", "")
+      str_tmp = str_tmp + String_Replace(arr_rlt[i], "0x", "")
+      str_rlt = str_rlt + str_tmp
+    }
+  }
+  return str_rlt
+}
+
+GeckoBypassImpedance (parameter) {
+  # commands = parameter.command
+
+# Item_Acc_Current(itemName, value_Acc, value_vldo6, underRange, overRange)
+#Item_Acc_Current("Gecko_Bypass_Impedance", value_V_R, value_vldo6, 0.85, 1.15)
+  # value_Acc = getValueFromShareDict(shareDict,parameter.input[0])
+  # value_vldo6 = getValueFromShareDict(shareDict,parameter.input[1])
+  value_Acc = parameter.input.acc
+  value_vldo6 = parameter.input.vldo6
+
+  underRange = 0.85
+  overRange = 1.15
+  _outputDistKey = parameter.output[0]
+  itemName = parameter.testName
+
+
+  value_Acc = numerify(value_Acc) / 21.5
+  underRange = underRange * numerify(value_vldo6) / 43
+  overRange = overRange * numerify(value_vldo6) / 43
+
+  isPass = value_Acc<=overRange && overRange >=underRange
+  spec = "[" + stringify(underRange) + "," + stringify(overRange) + "]"
+
+  Atlas.create_record([itemName, spec, stringify(value_Acc)], isPass)
+  # Atlas.create_record([itemName, spec, stringify(value_Acc)], isPass)  
+  _retDict = {}
+  _retDict.output = {}
+
+  return _retDict    
+}
+
+hallTest (parameter) {
+  # commands = parameter.command
+
+  _command = parameter.command
+
+  _key_flap_south_trigger_distance = parameter.output[0]
+  _key_flap_south_release_distance = parameter.output[1]
+  _key_flap_south_hysteresis = parameter.output[2]
+
+  float_distance = 18.5
+  triggerDis = -999
+  releaseDis = -999
+
+  while float_distance >= 5.5
+  {
+    trigger_0 = Unit_SendAndGet(_command)
+    trigger_0 = String_SubStringByPreAndPost(trigger_0, "] =", "OK")
+    str_triggerDis = float_distance
+    if trigger_0 == "0"
+    {
+      triggerDis = str_triggerDis
+      break
+    }
+
+    Fixture_SendAndGet("Magnet Step Down")
+    System.sleep(0.01)
+    float_distance = float_distance - 0.25
+  }
+  triggerDis = stringify(triggerDis)
+  # triggerDistance = Convert_StringToNumber(triggerDis)
+  triggerDistance = numerify(triggerDis)
+  # Item_Config_CheckRange("Flap_South_Trigger_distance", triggerDistance)
+  # cacheToShareDict(shareDict,_key_flap_south_trigger_distance,triggerDistance)
+
+  Fixture_SendAndGet("Move Magnet to 1.4")
+  System.sleep(0.01)
+  Fixture_SendAndGet("Move Magnet to 6.5")
+  System.sleep(0.01)
+
+  if triggerDis != "0"
+  {
+    float_distance = 6.5
+    Fixture_SendAndGet("Set Magnet Step 0.25")
+    while float_distance <= 20.25
+    {
+      Fixture_SendAndGet("Magnet Step Up")
+      System.sleep(0.1)
+      float_distance = float_distance + 0.25
+
+      trigger_0 = Unit_SendAndGet(_command)
+      trigger_0 = String_SubStringByPreAndPost(trigger_0, "] =", "OK")
+
+      str_releaseDis = float_distance
+
+      if trigger_0 == "1"
+      {
+        releaseDis = str_releaseDis
+        break
+      }
+    }
+  }
+
+  releaseDistance = stringify(releaseDis)
+  # releaseDis = Convert_StringToNumber(releaseDistance)
+  releaseDis =  numerify(releaseDistance)
+  hes2_Hysteresis = releaseDis - triggerDistance
+  # cacheToShareDict(shareDict,_key_flap_south_release_distance,releaseDis)
+  # cacheToShareDict(shareDict,_key_flap_south_hysteresis,hes2_Hysteresis)
+  # Item_Config_CheckRange("Flap_South_Release_distance", releaseDis)
+  # Item_Config_CheckRange("Flap_South_Hysteresis", hes2_Hysteresis)
+
+  _retDict = {}
+  _retDict.output = {}
+
+  _retDict.output = {
+    parameter.output[0] : triggerDistance,
+    parameter.output[1] : releaseDis,
+    parameter.output[2] : hes2_Hysteresis
+  }
+
+  return _retDict  
+
+}
+
+Fixture_SendAndGet(command)
+{
+  return Atlas.call_plugin("Fixture", "sendAndGet", {"command": command,"timeout": 15})
+}
+
+def Unit_SendAndGet(command)
+{
+  writeUartLog(command, "TX ==> Dut","NOW")
+  re = Atlas.call_plugin("Dut", "sendCommand", {"command": command, "timeout": 15})
+  writeUartLog(re,"RX ==> Dut","NOW")
+  return re
+}
+
+
+
+parseProxData(parameter) {
+  # commands = parameter.command
+
+  # _inputDistKey = parameter.input[0]
+  # _outputDistKey = parameter.output[0]
+
+  # _value = getValueFromShareDict(shareDict,_inputDistKey)
+  _value = parameter.input.customKey onError e -> if True {
+    _value = parameter.input.defaultKey    
+  }
+
+  # mapData = Func_ParseProxData(_value, "finish...", "OK") onError e -> if True {
+  #   mapData = Func_ParseProxData(_value, "finish...", "Stats:")
+  # }
+  mapData = Func_ParseProxData(_value, parameter.prefix, parameter.postfix)
+
+  # cacheToShareDict(shareDict,"DIST_AVE",mapData["DIST_AVE"])
+  # cacheToShareDict(shareDict,"DIST_STD",mapData["DIST_STD"])
+  # cacheToShareDict(shareDict,"SIG_AVE",mapData["SIG_AVE"])
+  # cacheToShareDict(shareDict,"SIG_STD",mapData["SIG_STD"])
+  # cacheToShareDict(shareDict,"AMB_AVE",mapData["AMB_AVE"])
+  # cacheToShareDict(shareDict,"AMB_STD",mapData["AMB_STD"])
+  # cacheToShareDict(shareDict,"REFSIG_AVE",mapData["REFSIG_AVE"])
+  # cacheToShareDict(shareDict,"REFSIG_STD",mapData["REFSIG_STD"])
+
+  _retDict = {}
+  _retDict.output = {}
+
+  _retDict.output = {
+    "DIST_AVE" : mapData["DIST_AVE"],
+    "DIST_STD" : mapData["DIST_STD"],
+    "SIG_AVE" : mapData["SIG_AVE"],
+    "SIG_STD" : mapData["SIG_STD"],
+    "AMB_AVE" : mapData["AMB_AVE"],
+    "AMB_STD" : mapData["AMB_STD"],
+    "REFSIG_AVE" : mapData["REFSIG_AVE"],
+    "REFSIG_STD" : mapData["REFSIG_STD"],
+  }
+
+  return _retDict    
+}
+
+# Func_ParseKeyStatus(rawKeyResponse)
+# {
+#   mapKeyStatus = {};
+  
+#   # AP: HoldKey=0 VolUp=0 VolDown=0 
+#   # PMU: HoldKey=0 VolUp=0 VolDown=0 RingerA=1 
+#   apKeyResponse = String_SubStringByPreAndPost(rawKeyResponse, "AP:", "PMU: ") onError e -> apKeyResponse = ""
+#   mapKeyStatus["Hold"] = Regex_FirstMatchOfSubpattern(apKeyResponse, "HoldKey=(\\d)")[1] onError e -> mapKeyStatus["Hold"] = "-1"
+#   mapKeyStatus["VolUp"] = Regex_FirstMatchOfSubpattern(apKeyResponse, "VolUp=(\\d)")[1] onError e -> mapKeyStatus["VolUp"] = "-1"
+#   mapKeyStatus["VolDn"] = Regex_FirstMatchOfSubpattern(apKeyResponse, "VolDown=(\\d)")[1] onError e -> mapKeyStatus["VolDn"] = "-1"
+#   mapKeyStatus["Ringer"] = Regex_FirstMatchOfSubpattern(apKeyResponse, "Ringer\\w=(\\d)")[1] onError e -> mapKeyStatus["Ringer"] = "-1"
+#   # mapKeyStatus["Ringer"] = "-1"
+  
+#   pmuKeyResponse = String_SubStringByPreAndPost(rawKeyResponse, "PMU:", "") onError e -> pmuKeyResponse = ""
+#   mapKeyStatus["PMUHold"] = Regex_FirstMatchOfSubpattern(pmuKeyResponse, "HoldKey=(\\d)")[1] onError e -> mapKeyStatus["PMUHold"] = "-1"
+#   mapKeyStatus["PMURinger"] = Regex_FirstMatchOfSubpattern(pmuKeyResponse, "Ringer\\w=(\\d)")[1] onError e -> mapKeyStatus["PMURinger"] = "-1"
+#   mapKeyStatus["PMUVolUp"] = Regex_FirstMatchOfSubpattern(pmuKeyResponse, "VolUp=(\\d)")[1] onError e -> mapKeyStatus["PMUVolUp"] = "-1"
+#   mapKeyStatus["PMUVolDown"] = Regex_FirstMatchOfSubpattern(pmuKeyResponse, "VolDown=(\\d)")[1] onError e -> mapKeyStatus["PMUVolDown"] = "-1"
+
+#   # UI_ShowMessage(mapKeyStatus)
+#   return mapKeyStatus
+# }
+
+
+DUT_checkChargingStatus(parameter) {
+  # UI_ShowMessage(stringify(parameter.command))
+  commands = JSON_LoadFromString(parameter.command)
+
+  # commands = parameter.command
+
+  cmd_cable_hvc_mode = commands[0]
+  cmd_cable_vsense = commands[1]
+  cmd_cable_isense = commands[2]
+  cmd_cable_reset = commands[3]
+
+  _outputKeyforVoltage = parameter.output[0]
+  _outputKeyforCurrent = parameter.output[1]
+
+  # Atlas.call_app("show-form", { "type" : "message", "message" : cmd_cable_hvc_mode})  
+  # Atlas.call_app("show-form", { "type" : "message", "message" : cmd_cable_vsense})  
+  # Atlas.call_app("show-form", { "type" : "message", "message" : cmd_cable_isense})  
+
+  # ======= HVC test 
+  read_Vbus_V = "Fail"
+  read_Vbus_C = "Can't get VBUS current!"
+
+  # Unit_SendAndGet(cmd_cable_hvc_mode, 5)
+  Unit_SendAndGet(cmd_cable_hvc_mode)
+  Unit_SendAndGet(cmd_cable_vsense)
+
+  flag0 = False
+  flag1 = False
+  flag2 = False
+  # Stopwatch_Start("VBUS_HV Charge time")
+  # float_TestTime = Stopwatch_Elapse("VBUS_HV Charge time")
+  float_TestTime = System.now()
+  # while float_TestTime <= 80
+  while (System.now()-float_TestTime) <= 80
+  {
+    # UI_ShowMessage(stringify("round"))
+    # read_Vbus_V = Unit_SendAndGet(cmd_cable_vsense, 5)
+    read_Vbus_V = Unit_SendAndGet(cmd_cable_vsense)
+    # if float_TestTime <= 10
+    if (System.now()-float_TestTime) <= 10
+    {
+      read_Vbus_V = String_SubStringByPreAndPost(read_Vbus_V, "<cable_vsense-", ">")
+      if isNumber(numerify(read_Vbus_V)) == True
+      {
+        read_Vbus_V = numerify(read_Vbus_V)/1000.0
+      }
+      else
+      {      
+        # float_TestTime = Stopwatch_Elapse("VBUS_HV Charge time")
+        # float_TestTime = System.now()
+        continue 
+      }
+      if flag0 == False
+      {
+        if numerify(read_Vbus_V) < 8
+        {
+          flag0 = False
+        }
+        else
+        {
+          flag0 = True
+        }
+      }
+
+      if numerify(read_Vbus_V) >= 13.5
+      {
+        flag1 = True
+        # float_TestTime = Stopwatch_Elapse("VBUS_HV Charge time")
+        # float_TestTime = System.now()
+        # read_Vbus_C = Unit_SendAndGet(cmd_cable_isense, 5)
+        read_Vbus_C = Unit_SendAndGet(cmd_cable_isense)
+        read_Vbus_C = String_SubStringByPreAndPost(read_Vbus_C, "<cable_isense-", ">")
+        continue
+      }
+      if flag0 && flag1
+      {
+        if numerify(read_Vbus_V) < 6
+        {
+          flag2 = True
+          read_Vbus_V = numerify(read_Vbus_V)
+          break
+        }
+        else
+        {
+          # float_TestTime = Stopwatch_Elapse("VBUS_HV Charge time")
+          # float_TestTime = System.now()
+        }
+
+      }
+      else
+      {
+        read_Vbus_V = numerify(read_Vbus_V)
+        # float_TestTime = Stopwatch_Elapse("VBUS_HV Charge time")
+        # float_TestTime = System.now()
+        continue
+      }
+    } 
+    else
+    {
+      if flag1 == False
+      {
+        break
+      }
+      read_Vbus_V = String_SubStringByPreAndPost(read_Vbus_V, "<cable_vsense-", ">")
+      if isNumber(numerify(read_Vbus_V)) == True
+      {
+        read_Vbus_V = numerify(read_Vbus_V)/1000.0
+      }
+      else
+      {      
+        # float_TestTime = Stopwatch_Elapse("VBUS_HV Charge time")
+        # float_TestTime = System.now()
+        continue 
+      }
+      if numerify(read_Vbus_V) < 6
+      {
+        flag2 = True
+        read_Vbus_V = numerify(read_Vbus_V)
+        break
+      }
+      else
+      {
+        read_Vbus_V = numerify(read_Vbus_V)
+        # float_TestTime = Stopwatch_Elapse("VBUS_HV Charge time")
+        # float_TestTime = System.now()
+        continue
+      }
+    }   
+  }
+  _retDict = {}
+
+  if flag0 && flag1 && flag2
+  {
+    read_Vbus_V = "Pass"
+    _retDict.result = True
+  }
+  else
+  {
+    read_Vbus_V = "Fail"
+    _retDict.result = False
+  }
+
+
+  # Unit_SendAndGet(cmd_cable_reset, 5)
+  System.sleep(0.5)
+  Unit_SendAndGet(cmd_cable_reset)
+
+  # cacheToShareDict(shareDict,_outputKeyforVoltage,read_Vbus_V)
+  # cacheToShareDict(shareDict,_outputKeyforCurrent,read_Vbus_C)
+
+  _retDict.output = {
+    parameter.output[0] : read_Vbus_V,
+    parameter.output[1] : read_Vbus_C
+  }
+  # UI_ShowMessage(stringify(_retDict.output))
+  return _retDict    
+  #{"Output":["vbus_voltage_result","vbus_current_result"]}
+  # Unit_SetUnitypetoCustom("] :-)", 115200)
+  # str_HVRlt = Unit_SendAndGet(" ", 10)  
+  # Atlas.call_app("show-form", { "type" : "message", "message" : str_HVRlt})
+
+}
+
+def setupUsbfs(dicContents)
+{
+	atlasLogInfo(formatString("+","USBF_TASK_START"))
+	atlasLogInfo("parameter:",dicContents)
+
+	strPath = dicContents.PATH onError e-> if True{
+		strPath = '/usr/local/bin/usbfs'
+	}
+	strShareFolder = dicContents.shareFolder onError e-> if True{
+		strShareFolder = Atlas.Unit.working_dir + "/AtlasLogs/"
+	}
+	Atlas.Log.info('share folder is ', strShareFolder)
+
+	strOption = dicContents.Option onError e-> if True{
+		strOption = '-f'
+	}
+	arrArgs = [strOption, strShareFolder]
+
+	if(strPath == Nil or strPath == "" or arrArgs == Nil or arrArgs == ""){
+		atlasLogInfo("PATH or ARGUMENTS not found")
+		return False
+	}
+	else
+	{
+		dicFinalResult = Atlas.call_plugin("TaskSupport","communicateWithTask",{"PATH": strPath, "ARGS": arrArgs, "NoNeedResponse": True})
+		if(dicFinalResult["result"])
+		{
+		Globals.g_strReturnValue =dicFinalResult.returnValue #objectForKey(dicFinalResult, "returnValue")
+		atlasLogInfo(formatString("+","USBF_TASK_START"+stringify(True)))
+		return _createResponseDict(True,{})
+		}
+		else
+		{
+		atlasLogInfo(formatString("+","USBF_TASK_START"+stringify(False)))
+		return _createResponseDict(False,{})
+		}
+
+	}
+}

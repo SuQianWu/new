@@ -1,0 +1,97 @@
+def FX_parseProxData(parameter) {
+  # commands = parameter.command
+
+  # _inputDistKey = parameter.input[0]
+  # _outputDistKey = parameter.output[0]
+
+  # _value = getValueFromShareDict(shareDict,_inputDistKey)
+  _value = parameter.input.customKey onError e -> if True {
+    _value = parameter.input.defaultKey    
+  }
+
+  # mapData = Func_ParseProxData(_value, "finish...", "OK") onError e -> if True {
+  #   mapData = Func_ParseProxData(_value, "finish...", "Stats:")
+  # }
+  mapData = Func_ParseProxData(_value, parameter.prefix, parameter.postfix)
+
+  # cacheToShareDict(shareDict,"DIST_AVE",mapData["DIST_AVE"])
+  # cacheToShareDict(shareDict,"DIST_STD",mapData["DIST_STD"])
+  # cacheToShareDict(shareDict,"SIG_AVE",mapData["SIG_AVE"])
+  # cacheToShareDict(shareDict,"SIG_STD",mapData["SIG_STD"])
+  # cacheToShareDict(shareDict,"AMB_AVE",mapData["AMB_AVE"])
+  # cacheToShareDict(shareDict,"AMB_STD",mapData["AMB_STD"])
+  # cacheToShareDict(shareDict,"REFSIG_AVE",mapData["REFSIG_AVE"])
+  # cacheToShareDict(shareDict,"REFSIG_STD",mapData["REFSIG_STD"])
+
+  _retDict = {}
+  _retDict.result = True
+  _retDict.output = {}
+
+  _retDict.output = {
+    "DIST_AVE" : mapData["DIST_AVE"],
+    "DIST_STD" : mapData["DIST_STD"],
+    "SIG_AVE" : mapData["SIG_AVE"],
+    "SIG_STD" : mapData["SIG_STD"],
+    "AMB_AVE" : mapData["AMB_AVE"],
+    "AMB_STD" : mapData["AMB_STD"],
+    "REFSIG_AVE" : mapData["REFSIG_AVE"],
+    "REFSIG_STD" : mapData["REFSIG_STD"],
+    "XT1PT_RXT" : mapData["XT1PT_RXT"],
+  }
+
+  return _retDict    
+}
+
+def Func_ParseProxData(rawData, str_Prefix, str_Postfix)
+{
+  rawData = String_SubStringByPreAndPost(rawData,str_Prefix, str_Postfix)
+  map_Result = {}
+
+  arrRow = tokenize(rawData, "\n")
+  rowCount = size(arrRow)
+
+  if rowCount < 32
+  {
+    raise exception("Prox Data don't have more than 32 records'")
+  }
+
+  arrDist = []
+  arrSig = []
+  arrAmb = []
+  arrRefsig = []
+
+  for i in range(rowCount-32, rowCount)
+  {
+    row = arrRow[i]
+    match = FX_Regex_FirstMatchOfSubpattern(row, "= ([.\\d-]+), ([.\\d-]+), ([.\\d-]+), ([.\\d-]+), ")
+    arrDist = arrDist + [ numerify(match[1]) ]
+    arrSig = arrSig + [ numerify(match[2]) ]
+    arrAmb = arrAmb + [ numerify(match[3]) ]
+    arrRefsig = arrRefsig + [ numerify(match[4]) ]    
+    # match = Regex.matches(row, "= ([.\\d-]+), ([.\\d-]+), ([.\\d-]+), ([.\\d-]+), ", 16)
+    # arrDist = arrDist + [ numerify(match[0]) ]
+    # arrSig = arrSig + [ numerify(match[1]) ]
+    # arrAmb = arrAmb + [ numerify(match[2]) ]
+    # arrRefsig = arrRefsig + [ numerify(match[3]) ]
+  }
+
+  avg = Math_Avg(arrDist)
+  map_Result["DIST_AVE"] = avg
+  map_Result["DIST_STD"] = Math_Stdevp(arrDist, avg)
+  
+  avg = Math_Avg(arrSig)
+  map_Result["SIG_AVE"] = avg
+  map_Result["SIG_STD"] = Math_Stdevp(arrSig, avg)
+  
+  avg = Math_Avg(arrAmb)
+  map_Result["AMB_AVE"] = avg
+  map_Result["AMB_STD"] = Math_Stdevp(arrAmb, avg)
+  
+  avg = Math_Avg(arrRefsig)
+  map_Result["REFSIG_AVE"] = avg
+  map_Result["REFSIG_STD"] = Math_Stdevp(arrRefsig, avg)
+  
+  map_Result["XT1PT_RXT"] = map_Result["SIG_AVE"]*(1-(map_Result["DIST_AVE"]/60))
+  
+  return map_Result
+}

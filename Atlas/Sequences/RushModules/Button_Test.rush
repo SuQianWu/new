@@ -1,0 +1,1345 @@
+def testButtonThread(dicSetting)
+{
+    atlasLogInfo("parameter:",dicSetting)
+    bRet = True
+
+    buttonThread = Futures.call(testAndCheckButtonStatus, dicSetting)
+
+    Atlas.call_app("show-form", {"type": "message", "message": "Please click all buttons(Vol_Up, Vol_Down, Hold, Ringer) within 20s.\n
+        If finish operation, click \"OK\" button"})
+
+    dicReturn =  buttonThread()
+    
+    atlasLogInfo("The buttonThread is:",dicReturn) onError e ->if True{}
+    if(isDictionary(dicReturn)){
+        # atlasLogInfo("result=",dicReturn)
+        if(contains(values(dicReturn),False)){
+            bRet = False
+        }
+    }else{
+        atlasLogInfo("Error")
+        bRet = False
+    }
+    strReturnValue = stringify(dicReturn)
+    atlasLogInfo("ReturnValue = ", strReturnValue)
+    return _createResponseDict(bRet,{dicSetting.output[0]: strReturnValue})
+}
+
+def testAndCheckButtonStatus(dicPara)
+{
+    arrButton = dicPara.buttonName
+    arrButtonRegex = dicPara.buttonRegex
+    # Globals.g_dicButtonBuffer["BUTTON"] = arrButtonRegex
+    atlasLogInfo("arrButtonRegex is ",arrButtonRegex)
+    dicRes = {}
+    arrBefore = []
+    arrRes = []
+    for j in range(size(arrButtonRegex)){
+        arrBefore = arrBefore  + [Nil]
+        arrRes = arrRes + [False]
+    }
+
+    iStartTime = System.now()
+    iEndTime = iStartTime
+    iTimeOut = 20
+    iCount = size(arrButtonRegex)
+    while ((iEndTime- iStartTime)<iTimeOut){
+        strResponse = Atlas.call_plugin("Dut", "sendCommand", {"command": "key"})
+        atlasLogInfo("strResponse is ",strResponse)
+        for i in range(size(arrButtonRegex)){
+            strRegex = arrButtonRegex[i]
+            atlasLogInfo("The index",i,"regex =",strRegex)
+            strResult = Regex.groups(strResponse,strRegex,8)[0]
+            atlasLogInfo("strResult is ",strResult)
+            if (strResult == Nil){
+                continue
+            }else{
+                if ((arrBefore[i] == Nil) || (arrBefore[i] == [])){
+                    arrBefore[i] = numerify(strResult)
+                }else{
+                    if(arrRes[i] == False){
+                        if ((numerify(strResult) - arrBefore[i] == 1) || (numerify(strResult) - arrBefore[i] == -1)){
+                            arrRes[i] = True
+                            iCount = iCount - 1
+                        }
+                    }       
+                }               
+            }
+        }
+        atlasLogInfo("arrRes is ",arrRes)
+        if(iCount <= 0){
+            println("Sucess!",iCount)
+            atlasLogInfo("Sucess! ",iCount)
+            break
+        }
+        iEndTime = System.now()
+    }
+    if((iEndTime- iStartTime)>iTimeOut){
+        println("Time our error!",iEndTime- iStartTime)
+        atlasLogInfo("Time our error!",iEndTime- iTime)
+    }
+    for i in range(size(arrButton)){
+        dicRes[arrButton[i]] = arrRes[i]
+    }
+    return dicRes
+}
+
+def checkButtonStatus(dicSetting){
+    firstStatus=dicSetting.input.firstStatus
+    secondStatus=dicSetting.input.secondStatus
+    thirdStatus=dicSetting.input.thirdStatus
+    arrRegex = dicSetting.regex
+    currentButton=dicSetting.currentButton
+    outputKey=dicSetting.output[0] 
+    retDict={
+            "result": True,
+            "output": {outputKey : ""}
+        }
+    count=size(arrRegex)
+    atlasLogInfo("Regex count:",count)
+    
+    if (size(arrRegex)==2)
+        {
+            keyValue1=numerify(Regex.groups(firstStatus,arrRegex[0],8)[0])
+            keyValue2=numerify(Regex.groups(secondStatus,arrRegex[0],8)[0])
+            keyValue3=numerify(Regex.groups(thirdStatus,arrRegex[0],8)[0])
+            PMUvalue1=numerify(Regex.groups(firstStatus,arrRegex[1],8)[0])
+            PMUvalue2=numerify(Regex.groups(secondStatus,arrRegex[1],8)[0])
+            PMUvalue3=numerify(Regex.groups(thirdStatus,arrRegex[1],8)[0])
+
+            calvalue1=PMUvalue2-PMUvalue1
+            atlasLogInfo("The first status is:",calvalue1)
+            calvalue2=PMUvalue3-PMUvalue2
+            atlasLogInfo("The second status is:",calvalue2)
+            PMUfinalvalue=calvalue2-calvalue1
+            if (PMUfinalvalue ==2 or PMUfinalvalue == -2){
+                strReturnValue="PMU"+currentButton+" status has been changed"
+                atlasLogInfo("PMU button result: ",strReturnValue)
+                PMUResult="PASS"
+            }
+            else
+                {
+                    strReturnValue="PMU"+currentButton+" status did not change"
+                    atlasLogInfo("PMU button result: ",strReturnValue)
+                    PMUResult="FAIL"
+                }
+            retDict.output=retDict.output+{"PMUResult": PMUResult}
+        }
+    else if(size(arrRegex)==1)
+        {
+            keyValue1=numerify(Regex.groups(firstStatus,arrRegex[0],8)[0])
+            keyValue2=numerify(Regex.groups(secondStatus,arrRegex[0],8)[0])
+            keyValue3=numerify(Regex.groups(thirdStatus,arrRegex[0],8)[0])
+        }
+    else
+        {
+            atlasLogInfo("Please check the count of regex,it should be 1 or 2!")
+            retDict.result = False
+            return retDict
+        }
+    value1=keyValue2-keyValue1
+    atlasLogInfo("The first status is:",value1)
+    value2=keyValue3-keyValue2
+    atlasLogInfo("The second status is:",value2)
+    finalvalue=value2-value1
+    if (finalvalue ==2 or finalvalue == -2){
+        strReturnValue=currentButton+" status has been changed"
+        atlasLogInfo("The final result: ",strReturnValue)
+        retDict.result = True
+    }else
+    {
+        strReturnValue=currentButton+" status did not change"
+        atlasLogInfo("The final result: ",strReturnValue)
+        retDict.result = False
+    }
+    atlasLogInfo("result parameters",retDict)
+    return retDict    
+}
+def checkOtherButtonWhetherChange(dicSetting){
+    atlasLogInfo("parameter:",dicSetting)
+    outPutKey                 = dicSetting.output[0]  
+    retDict = {
+      "result": True,
+      "output": { outPutKey : ""}
+    }
+    strOriginalString         = dicSetting.input.Original_Key onError E ->strOriginalString =""
+    strLatestString           = dicSetting.input.Latest_Key  onError E ->strLatestString =""
+    apButtonString            = Regex.groups(strOriginalString,"AP\\s*:(.*?)(?=PMU\\s*:|$)",8)[0] onError E ->apButtonString ="" 
+    pmuButtonString           = Regex.groups(strOriginalString,"PMU:(.*?)(?=AP\\s*:|$)",8)[0] onError E ->pmuButtonString =""
+    if apButtonString == "" or pmuButtonString == ""{
+        strReturnValue = "Original_Key or Latest_Key content is wrong or format changed, please check!!!"
+        atlasLogInfo("ReturnValue = ",strReturnValue)
+        retDict.output[outPutKey]=strReturnValue
+        retDict.result = False
+        return retDict        
+    }
+    #all button
+    apButton                  = Regex.groups(apButtonString,"[\\W]+(\\w+)\\s*=",8)
+    pmuButton                 = Regex.groups(pmuButtonString,"[\\W]+(\\w+)\\s*=",8)
+    for i in range(0,size(apButton)){
+        if isString(apButton[i]) == True{
+            apButton[i] = "AP:"+apButton[i]            
+        }
+    }
+    for i in range(0,size(pmuButton)){
+        if isString(pmuButton[i]) == True{
+            pmuButton[i] = "PMU:"+pmuButton[i]            
+        }
+    }
+    allButton                 = apButton+pmuButton
+    Atlas.Log.info("allButton:",allButton)    
+
+    arrCurrentButton          = dicSetting.Current_Button
+    otherButton               = []
+    bCheckFormat              = True
+    for button1 in arrCurrentButton{
+        strCurrentButton      = Regex.replace(button1, "\\s*", "", 8)
+        otherButton           = removeObject(allButton,strCurrentButton)
+        if size(Regex.groups(strCurrentButton,"\\s*(PMU|AP)\\s*:\\s*\\w+\\s*",8))==0 or otherButton == allButton{
+            bCheckFormat = False
+        }
+        else{
+            allButton = otherButton
+        }
+    }
+    if not bCheckFormat{
+        UI_ShowMessage("Current_Button >>>"+ stringify(arrCurrentButton)+ "<<< format is wrong, or Current_Button not in allButton list, please check!!!")
+        strReturnValue = "Current_Button "+ stringify(arrCurrentButton)+ " format is wrong, please check!!!"
+        atlasLogInfo("ReturnValue = ",strReturnValue)
+        retDict.output[outPutKey]=strReturnValue
+        retDict.result = False
+        return retDict
+    }
+    #start check
+    for buttonA in otherButton{
+        buttonA = Regex.replace(buttonA, ":", ":.*?", 8)
+        originalButtonValue = Regex.groups(strOriginalString,buttonA+"\\s*=\\s*(\\d{1})",8)
+        latestButtonValue   = Regex.groups(strLatestString,buttonA+"\\s*=\\s*(\\d{1})",8)
+        if originalButtonValue == latestButtonValue{
+            Atlas.Log.info(buttonA + " button OK:"+" Original:",originalButtonValue,"== Latest:",latestButtonValue)            
+        }
+        else{
+            Atlas.Log.info(buttonA + " button changed:"+" Original:",originalButtonValue,"!= Latest:",latestButtonValue)            
+            strReturnValue = "Current button [" + stringify(arrCurrentButton) +"] is OK, but other button [" + buttonA + "] value changed, please check in FA for analysis!"
+            atlasLogInfo("ReturnValue = ",strReturnValue)
+            retDict.output[outPutKey]=strReturnValue
+            retDict.result = False
+            return retDict    
+        }
+    }
+    strReturnValue = "All ohter buttons are OK！"
+    atlasLogInfo("ReturnValue = ",strReturnValue)
+    retDict.output[outPutKey]=strReturnValue
+    return retDict
+}
+
+def checkLoopRingerResult(dicSetting)
+{
+    atlasLogInfo("parameter:",dicSetting)
+    outPutKey                 = dicSetting.output[0]  
+    retDict = {
+      "result": False,
+      "output": { outPutKey : ""}
+    }
+    strPreRinger         = dicSetting.input.PreRingerKey onError E ->strPreRinger =""
+    strLoopResponse      = dicSetting.input.LoopResponse  onError E ->strLoopResponse =""
+
+    strLoopResponse = Regex.replace(strLoopResponse, "(\\n\\r*Iteration\\s*\\d+/\\d+:\\s*\"key\")", "", 8)
+
+    pattern1 = "PMU: HoldKey=0 VolUp=0 VolDown=0 RingerA=1\\s*\\n*AP: HoldKey=0 VolUp=0 VolDown=0\\s*\\n*PMU: HoldKey=0 VolUp=0 VolDown=0 RingerA=0"
+    pattern2 = "PMU: HoldKey=0 VolUp=0 VolDown=0 RingerA=0\\s*\\n*AP: HoldKey=0 VolUp=0 VolDown=0\\s*\\n*PMU: HoldKey=0 VolUp=0 VolDown=0 RingerA=1"
+
+    _matches1 = Regex.matches(strLoopResponse,pattern1,16)
+    _matches2 = Regex.matches(strLoopResponse,pattern2,16)
+
+    if 1==size(Regex.matches(strPreRinger,"RingerA=1",16)) 
+    {
+        if size(_matches1) == 1 && size(_matches2) < 1
+        {
+            strReturnValue = "Pre status RingerA=1, Loop test ringer button result PASS！"
+            retDict.result = True
+        }
+        else{
+            strReturnValue = "Pre status RingerA=1, Loop test ringer button FAIL, need to check"            
+        }
+    }
+    else
+    {
+        if size(_matches2) == 1 && size(_matches1) < 1
+        {
+            strReturnValue = "Pre status RingerA=0, Loop test ringer button result PASS！"
+            retDict.result = True
+        }
+        else{
+            strReturnValue = "Pre status RingerA=0, Loop test ringer button FAIL, need to check"            
+        }
+    }
+
+    retDict.output[outPutKey]=strReturnValue
+    return retDict
+}
+
+def checkRingerStatus(dicSetting){
+    atlasLogInfo("parameters :", dicSetting)
+    strRingerOriginal= dicSetting.input.customKey  onError e ->strRingerOriginal=""
+    strRingerDown=dicSetting.ringerDown                 onError e ->strRingerDown=""
+    strFixCmdRingerDown=dicSetting.fixtureDown          onError e ->strFixCmdRingerDown=""
+    strFixCmdRingerUp=dicSetting.fixtureUp              onError e ->strFixCmdRingerUp=""
+    outPutKey = dicSetting.output[0]  
+    retDict = {
+      "result": True,
+      "output": { outPutKey : ""}
+    }
+    if strRingerDown==Nil or strRingerDown=="" or strFixCmdRingerDown==Nil or strFixCmdRingerDown=="" or 
+        strFixCmdRingerUp==Nil or strFixCmdRingerUp=="" or strRingerOriginal==Nil or strRingerOriginal==""{
+        Atlas.Log.error("missing parameter in the function", dicSetting)
+        retDict = {
+            "result": False,
+            "output": { outPutKey : ""}
+        }
+        return retDict
+    }
+    else{
+        str_original = stringify(strRingerOriginal)
+        atlasLogInfo("ringerDown is:",strRingerDown,",  ringerOriginal value is:",str_original)
+        if (strRingerDown == str_original){
+                retDict.output=retDict.output+{"AdjustFixtureLocation": strFixCmdRingerDown,"FirstFixtureCommand": strFixCmdRingerUp,"SecondFixtureCommand": strFixCmdRingerDown}
+            }
+        else
+            {
+                retDict.output=retDict.output+{"AdjustFixtureLocation": strFixCmdRingerUp,"FirstFixtureCommand": strFixCmdRingerDown,"SecondFixtureCommand": strFixCmdRingerUp}
+            }
+        atlasLogInfo("the fixture status have been change:", "\nAdjustFixtureLocation value is:",retDict.output["AdjustFixtureLocation"],
+            "\nFirstFixtureCommand value is:",retDict.output["FirstFixtureCommand"],
+            "\nSecondFixtureCommand value is:",retDict.output["SecondFixtureCommand"])
+        return retDict
+    }
+}
+    
+def judgeForButton(dicSetting){
+
+    atlasLogInfo("parameters:",dicSetting)
+    buttonValue = dicSetting.input.customKey  onError e -> if  True {
+
+        Atlas.Log.error("buttonValue is Nil,please check it!")
+    }
+    # buttonItem = objectForKey(dicSetting,"item")
+
+    buttonItem  = dicSetting.item
+    if (buttonItem == Nil or buttonItem == "" ){
+        Atlas.Log.error("buttonItem is Nil,please check it!")
+    }
+
+    outPutKey = dicSetting.output[0]
+    retDict = {
+            "result" : True,
+            "output" : {outPutKey : ""}
+        }
+
+    if (buttonItem == "Hold" or buttonItem == "Vol_Up" or buttonItem == "Vol_Down"){
+        if (buttonValue == "010"){
+
+            retDict.result = True
+            # retDict.outPutKey = "PASS"
+            return retDict
+        }
+        else{
+              atlasLogInfo("button fail item ",buttonItem )
+              retDict.result = False
+              return retDict
+        }
+    }
+    elsif (buttonItem == "Ringer"){
+        if(buttonValue == "101" or buttonValue == "010"){
+
+            retDict.result = True
+
+            return retDict
+        }else{
+            atlasLogInfo("button fail item ",buttonItem )
+            retDict.result = False
+            return retDict
+        }
+    }
+    else
+    {
+        atlasLogInfo("parameters input error ")
+        retDict.result = False
+        return retDict
+    }
+}
+def buttonSendCommand(dicSetting){
+
+    atlasLogInfo("parameters:",dicSetting)
+
+    outPutKey = dicSetting.output[0]
+    retDict = {
+            "result" : True,
+            "output" : {outPutKey : ""}
+           }
+
+    if(dicSetting == Nil or size(dicSetting) == 0){
+        bRet = False
+        Atlas.Log.error("There're no parameter for buttonSendCommand!")
+
+        retDict.result = bRet
+        return retDict
+    }
+    sendCommandValue ={}
+    readCommandValue ={}
+
+    sendCommandValue["command"] = dicSetting.command
+    sendCommandValue["target"] = dicSetting.target
+    readCommandValue["target"] = dicSetting.target
+    readCommandValue["deleteEnter"] = dicSetting.deleteEnter
+    readCommandValue["matchType"] = dicSetting.matchType
+    readCommandValue["timeout"] = dicSetting.timeout
+    readCommandValue["endSymbol"] = [":-)"]
+
+
+    atlasLogInfo("readCommandValue:",readCommandValue["target"])
+
+    strPortType = dicSetting.target
+    Atlas.call_plugin("SerialPort","clearBuffer",{"target": strPortType, "uartLogPath": Globals.system.uartlog.path})
+
+    sendCommandValue["uartLogPath"] = Globals.system.uartlog.path
+    atlasLogInfo("sendCommandValue:",sendCommandValue)
+    bRet                   = Atlas.call_plugin("SerialPort","send",sendCommandValue)
+
+    readCommandValue["uartLogPath"] = Globals.system.uartlog.path
+    atlasLogInfo("readCommandValue:",readCommandValue)
+    bRet                   = Atlas.call_plugin("SerialPort","get",readCommandValue)
+    atlasLogInfo("info_return:",bRet)
+
+    pattern = "(Fail.)"
+    groups = Regex.groups(bRet, pattern, 8)
+    atlasLogInfo(groups)
+
+    resultCatch = Nil
+
+    if size(groups) > 0 {
+        resultCatch = groups[0]
+        atlasLogInfo(resultCatch)
+        resultCatch = Regex.replace(resultCatch, "^\\s+", "", 16)
+        resultCatch = Regex.replace(resultCatch, "\\s+$", "", 16)
+        atlasLogInfo(resultCatch)
+
+        retDict = {
+            "result" : False,
+            "output" : {outPutKey : retDict.output.outPutKey}
+           }
+
+
+        }
+    else {
+              resultCatch = ""
+        }
+        
+    if (bRet == Nil or bRet == ""){
+        Atlas.Log.error("There're no parameter for buttonSendCommand!")
+
+        retDict.result = False
+        return retDict
+
+    }
+
+
+    retDict.output.outPutKey=bRet
+
+
+    retDict = {
+            "result" : True,
+            "output" : {outPutKey : retDict.output.outPutKey}
+           }
+
+    return retDict
+    }
+
+def openTarget(dicSetting){
+    # atlasLogInfo(formatString("+","OPEN_TARGET"))
+    atlasLogInfo("parameters:",dicSetting)
+    # strPortType = dicSetting.input.customKey onError e-> strPortType = "MOBILE"
+    strPortType = dicSetting.communicateTarget
+    if strPortType == Nil{
+        strPortType = "MOBILE"
+    }
+    # dicSetting = {"target": MOBILE}
+    outPutKey = dicSetting.output[0]
+        retDict = {
+            "result" : True,
+            "output" : {outPutKey : ""}
+        }
+    # strPortType = objectForKey(dicSetting,"target")
+    atlasLogInfo("user_info",Atlas.Unit.user_info)
+    dicPortInfo1 = Atlas.Unit.user_info
+    dicPortInfo = dicPortInfo1[strPortType]
+    dicPortInfo["target"] = strPortType
+    Atlas.call_plugin("SerialPort","closePort",dicSetting)
+    bRet     = Atlas.call_plugin("SerialPort","openPort",dicPortInfo)
+    retDict.result = bRet
+    atlasLogInfo(formatString("+","openTarget "+stringify(bRet)))
+    return retDict
+}
+def closeTarget(dicSetting){
+    # atlasLogInfo(formatString("+","CLOSE_TARGET"))
+    atlasLogInfo("parameters:",dicSetting)
+    # strPortType = dicSetting.input.customKey onError e-> strPortType = "MOBILE"
+    strPortType = dicSetting.communicateTarget
+    if strPortType == Nil{
+        strPortType = "MOBILE"
+    }
+    # dicSetting = {"target": MOBILE}
+    outPutKey = dicSetting.output[0]
+    retDict = {
+            "result" : True,
+            "output" : {outPutKey : ""}
+        }
+    bRet  = Atlas.call_plugin("SerialPort","closePort",dicSetting)
+    dicPortInfo1 = Atlas.Unit.user_info
+    retDict.result = bRet
+    atlasLogInfo(formatString("+","closeTarget "+stringify(bRet)))
+    Atlas.call_plugin("FixtureSync","waitingAllUnitFinish",{})
+    return retDict
+}
+
+#======================================================================================#
+
+FX_HSG_Button_Test()
+{
+  # ============= Ringer ==============
+  # Fixture_SendAndGet_v2("Open Ringer A")
+  # FX_Sleep(0.2)
+  # Fixture_SendAndGet_v2("Close Ringer_B")
+  # FX_Sleep(0.3)
+  
+  preKeyStatus = Unit_SendAndGet_v2("key")
+  isRingerPressed = FX_String_IsContain(preKeyStatus, "RingerA=1")
+
+  if isRingerPressed
+  {
+    Fixture_SendAndGet_v2("Close Ringer B")
+  }
+  else
+  {
+    Fixture_SendAndGet_v2("Open Ringer B")
+  }
+
+  System.sleep(0.2)
+  currentKeyStatus = Unit_SendAndGet_v2("key")
+
+  if isRingerPressed
+  {
+    Fixture_SendAndGet_v2("Open Ringer B")
+  }
+  else
+  {
+    Fixture_SendAndGet_v2("Close Ringer B")
+  }
+
+  System.sleep(0.3)
+  rebackKeyStatus = Unit_SendAndGet_v2("key")
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "PMURinger")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, currentKeyStatus, "PMURinger")
+  # FX_CreateRecord(["Ringer"], buttonStatus && rebackButtonStatus)
+  _record = Atlas.create_record(["buttonTest","Ringer"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****")   
+  Globals.system.testRecords = Globals.system.testRecords :: _record  
+
+  # buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "PMURinger")
+  # rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, currentKeyStatus, "PMURinger")
+  # FX_CreateRecord(["PMURinger"], buttonStatus && rebackButtonStatus)
+
+  # Fixture_SendAndGet_v2("Close RingerA")
+  
+  # ============= Vol_Up ==============
+  # rebackKeyStatus = Unit_SendAndGet_v2("key")
+  Fixture_SendAndGet_v2("Open VolUp key")
+  System.sleep(0.2)
+  preKeyStatus = Unit_SendAndGet_v2("key")
+
+  Fixture_SendAndGet_v2("Close VolUp key")
+  System.sleep(0.2)
+  currentKeyStatus = Unit_SendAndGet_v2("key")
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "VolUp")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "VolUp")
+  # FX_CreateRecord(["VolUp"], buttonStatus && rebackButtonStatus)
+  _record = Atlas.create_record(["buttonTest","VolUp"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****") 
+  Globals.system.testRecords = Globals.system.testRecords :: _record      
+
+  # ============= Hold ==============
+  rebackKeyStatus = Unit_SendAndGet_v2("key")
+  Fixture_SendAndGet_v2("Open Hold Key")
+  System.sleep(0.2)
+  preKeyStatus = Unit_SendAndGet_v2("key")
+
+  Fixture_SendAndGet_v2("Close Hold Key")
+  System.sleep(0.2)
+  currentKeyStatus = Unit_SendAndGet_v2("key")
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "Hold")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "Hold")
+  # FX_CreateRecord(["Hold"], buttonStatus && rebackButtonStatus)
+  _record = Atlas.create_record(["buttonTest","Hold"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****") 
+  Globals.system.testRecords = Globals.system.testRecords :: _record        
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "PMUHold")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "PMUHold")
+  # FX_CreateRecord(["PMUHold"], buttonStatus && rebackButtonStatus)
+
+  # ============= Vol_Down ==============
+  # rebackKeyStatus = Unit_SendAndGet_v2("key")
+  Fixture_SendAndGet_v2("Open VolDn key")
+  System.sleep(0.2)
+  preKeyStatus = Unit_SendAndGet_v2("key")
+
+  Fixture_SendAndGet_v2("Close VolDn key")
+  System.sleep(0.2)
+  currentKeyStatus = Unit_SendAndGet_v2("key")
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "VolDn")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "VolDn")
+  # FX_CreateRecord(["VolDn"], buttonStatus && rebackButtonStatus)
+  _record = Atlas.create_record(["buttonTest","VolDn"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****")  
+  Globals.system.testRecords = Globals.system.testRecords :: _record   
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "PMUVolDown")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "PMUVolDown")
+  # FX_CreateRecord(["PMUVolDown"], buttonStatus && rebackButtonStatus)
+  _record = Atlas.create_record(["buttonTest","PMUVolDown"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****")  
+  Globals.system.testRecords = Globals.system.testRecords :: _record     
+
+  # PMU_Ringer
+  # commands = Config_GetCommands("adc_BIST_amuxa2_CAMPMU")
+  # response = Unit_SendAndGet_v2SubString(commands[1], "amuxa2: ", " mV")
+  # Item_Config_CheckRange("adc_BIST_amuxa2_CAMPMU", response)
+}
+
+FX_buttonTest_33MP (parameter) {
+  # commands = parameter.command
+
+  # ============= Ringer ==============
+  Fixture_SendAndGet_v2("Open Ringer_A")
+  # Fixture_SendAndGet_v2("Open Ringer_B")
+  # System.sleep(0.2)
+  # Fixture_SendAndGet_v2("Close Ringer_B")
+  # System.sleep(0.3)
+  
+  preKeyStatus = Unit_SendAndGet_v2("key")
+  isRingerPressed = FX_String_IsContain(preKeyStatus, "RingerA=1")
+
+  if isRingerPressed
+  {
+    Fixture_SendAndGet_v2("Close Ringer_B")
+  }
+  else
+  {
+    Fixture_SendAndGet_v2("Open Ringer_B")
+  }
+
+  System.sleep(0.2)
+  currentKeyStatus = Unit_SendAndGet_v2("key")
+
+  if isRingerPressed
+  {
+    Fixture_SendAndGet_v2("Open Ringer_B")
+  }
+  else
+  {
+    Fixture_SendAndGet_v2("Close Ringer_B")
+  }
+
+  System.sleep(0.2)
+  rebackKeyStatus = Unit_SendAndGet_v2("key")
+
+  # buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "Ringer")
+  # rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, currentKeyStatus, "Ringer")
+  # Atlas.create_record(["Ringer"], buttonStatus && rebackButtonStatus)
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "PMURinger")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, currentKeyStatus, "PMURinger")
+  _record = Atlas.create_record(["buttonTest","PMURinger"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****")   
+  Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  Fixture_SendAndGet_v2("Close Ringer_A")
+
+  # ============= Vol_Up ==============
+  # rebackKeyStatus = Unit_SendAndGet_v2("key")
+  Fixture_SendAndGet_v2("Open Vol_Up")
+  System.sleep(0.05)
+  preKeyStatus = Unit_SendAndGet_v2("key")
+
+  Fixture_SendAndGet_v2("Close Vol_Up")
+  System.sleep(0.05)
+  currentKeyStatus = Unit_SendAndGet_v2("key")
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "VolUp")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "VolUp")
+  _record = Atlas.create_record(["buttonTest","VolUp"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****") 
+  Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "PMUVolUp")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "PMUVolUp")
+  _record = Atlas.create_record(["buttonTest","PMUVolUp"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****") 
+  Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  # # # ============= Double Click ==============
+  # Unit_SendAndGet_v2("sep --init")
+  # Unit_SendAndGet_v2("sep --sendcmd 0x0 --receive 0x0")
+  # response = Unit_SendAndGet_v2("sep -g")
+  # clickPre = String_SubStringByPreAndPost(response, "double_click_count =", "\n") onError e -> clickPre = "Can not get correct value!"
+  # Fixture_SendAndGet_v2("Open Short Key")
+  # System.sleep(0.05)
+  # Fixture_SendAndGet_v2("Close Short Key")
+  # System.sleep(0.05)
+  # Fixture_SendAndGet_v2("Open Short Key")
+  # System.sleep(0.1)
+  # Fixture_SendAndGet_v2("Close Short Key")
+  # System.sleep(0.05)
+  # Unit_SendAndGet_v2("sep --sendcmd 0x0 --receive 0x0")
+  # response = Unit_SendAndGet_v2("sep -g")
+  # clickPost = String_SubStringByPreAndPost(response, "double_click_count =", "\n") onError e -> clickPost = "Can not get correct value!"
+
+  # clickRlt = "Can not get correct value!"
+  
+  # if FX_String_IsAlphabetOrNumber(clickPre) && FX_String_IsAlphabetOrNumber(clickPost)
+  # {
+  #   clickRlt = numerify(clickPost) - numerify(clickPre)
+  #   clickRlt = stringify(clickRlt)
+  # }
+  # _record = Atlas.create_record(["buttonTest","Double_Click_Detect"], FX_String_IsEqual(clickRlt, "1"))
+  # logMsg = _generateRecordPlainString(_record)
+  # logInfo("*****", "Add Record:", logMsg, "*****")
+  # Globals.system.testRecords = Globals.system.testRecords :: _record 
+
+
+# ============= Hold ==============
+  rebackKeyStatus = Unit_SendAndGet_v2("key")
+  Fixture_SendAndGet_v2("Open Short Key")
+  System.sleep(0.05)
+  preKeyStatus = Unit_SendAndGet_v2("key")
+
+  Fixture_SendAndGet_v2("Close Short Key")
+  System.sleep(0.05)
+  currentKeyStatus = Unit_SendAndGet_v2("key")
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "Hold")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "Hold")
+  _record = Atlas.create_record(["buttonTest","Hold"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****") 
+  Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "PMUHold")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "PMUHold")
+  _record = Atlas.create_record(["buttonTest","PMUHold"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****") 
+  Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  # ============= Vol_Down ==============
+  # rebackKeyStatus = Unit_SendAndGet_v2("key")
+  rebackKeyStatus = currentKeyStatus
+  Fixture_SendAndGet_v2("Open Vol_Down")
+  System.sleep(0.05)
+  preKeyStatus = Unit_SendAndGet_v2("key")
+
+  Fixture_SendAndGet_v2("Close Vol_Down")
+  System.sleep(0.05)
+  currentKeyStatus = Unit_SendAndGet_v2("key")
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "VolDn")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "VolDn")
+  _record = Atlas.create_record(["buttonTest","VolDn"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****") 
+  Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "PMUVolDown")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "PMUVolDown")
+  _record = Atlas.create_record(["buttonTest","PMUVolDown"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****") 
+  Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  _retDict = {}
+  _retDict.output = {}
+
+  return _retDict  
+}
+
+FX_buttonTest_32MP (parameter) {
+  # commands = parameter.command
+
+  # ============= Ringer ==============
+  Fixture_SendAndGet_v2("Open Ringer_A")
+  # Fixture_SendAndGet_v2("Open Ringer_B")
+  # System.sleep(0.2)
+  # Fixture_SendAndGet_v2("Close Ringer_B")
+  # System.sleep(0.3)
+  
+  preKeyStatus = Unit_SendAndGet_v2("key")
+  isRingerPressed = FX_String_IsContain(preKeyStatus, "RingerA=1")
+
+  if isRingerPressed
+  {
+    Fixture_SendAndGet_v2("Close Ringer_B")
+  }
+  else
+  {
+    Fixture_SendAndGet_v2("Open Ringer_B")
+  }
+
+  System.sleep(0.2)
+  currentKeyStatus = Unit_SendAndGet_v2("key")
+
+  if isRingerPressed
+  {
+    Fixture_SendAndGet_v2("Open Ringer_B")
+  }
+  else
+  {
+    Fixture_SendAndGet_v2("Close Ringer_B")
+  }
+
+  System.sleep(0.2)
+  rebackKeyStatus = Unit_SendAndGet_v2("key")
+
+  # buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "Ringer")
+  # rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, currentKeyStatus, "Ringer")
+  # Atlas.create_record(["Ringer"], buttonStatus && rebackButtonStatus)
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "PMURinger")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, currentKeyStatus, "PMURinger")
+  _record = Atlas.create_record(["buttonTest","PMURinger"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****")   
+  Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  Fixture_SendAndGet_v2("Close Ringer_A")
+
+  # ============= Vol_Up ==============
+  # rebackKeyStatus = Unit_SendAndGet_v2("key")
+  Fixture_SendAndGet_v2("Open Vol_Up")
+  System.sleep(0.05)
+  preKeyStatus = Unit_SendAndGet_v2("key")
+
+  Fixture_SendAndGet_v2("Close Vol_Up")
+  System.sleep(0.05)
+  currentKeyStatus = Unit_SendAndGet_v2("key")
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "VolUp")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "VolUp")
+  _record = Atlas.create_record(["buttonTest","VolUp"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****") 
+  Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "PMUVolUp")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "PMUVolUp")
+  _record = Atlas.create_record(["buttonTest","PMUVolUp"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****") 
+  Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  # # # ============= Double Click ==============
+  # Unit_SendAndGet_v2("sep --init")
+  # Unit_SendAndGet_v2("sep --sendcmd 0x0 --receive 0x0")
+  # response = Unit_SendAndGet_v2("sep -g")
+  # clickPre = String_SubStringByPreAndPost(response, "double_click_count =", "\n") onError e -> clickPre = "Can not get correct value!"
+  # Fixture_SendAndGet_v2("Open Short Key")
+  # System.sleep(0.05)
+  # Fixture_SendAndGet_v2("Close Short Key")
+  # System.sleep(0.05)
+  # Fixture_SendAndGet_v2("Open Short Key")
+  # System.sleep(0.1)
+  # Fixture_SendAndGet_v2("Close Short Key")
+  # System.sleep(0.05)
+  # Unit_SendAndGet_v2("sep --sendcmd 0x0 --receive 0x0")
+  # response = Unit_SendAndGet_v2("sep -g")
+  # clickPost = String_SubStringByPreAndPost(response, "double_click_count =", "\n") onError e -> clickPost = "Can not get correct value!"
+
+  # clickRlt = "Can not get correct value!"
+  
+  # if FX_String_IsAlphabetOrNumber(clickPre) && FX_String_IsAlphabetOrNumber(clickPost)
+  # {
+  #   clickRlt = numerify(clickPost) - numerify(clickPre)
+  #   clickRlt = stringify(clickRlt)
+  # }
+  # _record = Atlas.create_record(["buttonTest","Double_Click_Detect"], FX_String_IsEqual(clickRlt, "1"))
+  # logMsg = _generateRecordPlainString(_record)
+  # logInfo("*****", "Add Record:", logMsg, "*****")
+  # Globals.system.testRecords = Globals.system.testRecords :: _record 
+
+
+# ============= Hold ==============
+  rebackKeyStatus = Unit_SendAndGet_v2("key")
+  Fixture_SendAndGet_v2("Open Short Key")
+  System.sleep(0.05)
+  preKeyStatus = Unit_SendAndGet_v2("key")
+
+  Fixture_SendAndGet_v2("Close Short Key")
+  System.sleep(0.05)
+  currentKeyStatus = Unit_SendAndGet_v2("key")
+
+  # buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "Hold")
+  # rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "Hold")
+  # _record = Atlas.create_record(["buttonTest","Hold"], buttonStatus && rebackButtonStatus)
+  # logMsg = _generateRecordPlainString(_record)
+  # logInfo("*****", "Add Record:", logMsg, "*****") 
+  # Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "PMUHold")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "PMUHold")
+  _record = Atlas.create_record(["buttonTest","PMUHold"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****") 
+  Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  # ============= Vol_Down ==============
+  # rebackKeyStatus = Unit_SendAndGet_v2("key")
+  rebackKeyStatus = currentKeyStatus
+  Fixture_SendAndGet_v2("Open Vol_Down")
+  System.sleep(0.05)
+  preKeyStatus = Unit_SendAndGet_v2("key")
+
+  Fixture_SendAndGet_v2("Close Vol_Down")
+  System.sleep(0.05)
+  currentKeyStatus = Unit_SendAndGet_v2("key")
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "VolDn")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "VolDn")
+  _record = Atlas.create_record(["buttonTest","VolDn"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****") 
+  Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "PMUVolDown")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "PMUVolDown")
+  _record = Atlas.create_record(["buttonTest","PMUVolDown"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****") 
+  Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  _retDict = {}
+  _retDict.output = {}
+
+  return _retDict  
+}
+
+
+FX_buttonTest (parameter) {
+  # commands = parameter.command
+
+  # ============= Ringer ==============
+  Fixture_SendAndGet_v2("Open Ringer_A")
+  # Fixture_SendAndGet_v2("Open Ringer_B")
+  # System.sleep(0.2)
+  # Fixture_SendAndGet_v2("Close Ringer_B")
+  # System.sleep(0.3)
+  
+  preKeyStatus = Unit_SendAndGet_v2("key")
+  isRingerPressed = FX_String_IsContain(preKeyStatus, "RingerA=1")
+
+  if isRingerPressed
+  {
+    Fixture_SendAndGet_v2("Close Ringer_B")
+  }
+  else
+  {
+    Fixture_SendAndGet_v2("Open Ringer_B")
+  }
+
+  System.sleep(0.2)
+  currentKeyStatus = Unit_SendAndGet_v2("key")
+
+  if isRingerPressed
+  {
+    Fixture_SendAndGet_v2("Open Ringer_B")
+  }
+  else
+  {
+    Fixture_SendAndGet_v2("Close Ringer_B")
+  }
+
+  System.sleep(0.2)
+  rebackKeyStatus = Unit_SendAndGet_v2("key")
+
+  # buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "Ringer")
+  # rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, currentKeyStatus, "Ringer")
+  # Atlas.create_record(["Ringer"], buttonStatus && rebackButtonStatus)
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "PMURinger")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, currentKeyStatus, "PMURinger")
+  _record = Atlas.create_record(["buttonTest","PMURinger"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****")   
+  Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  Fixture_SendAndGet_v2("Close Ringer_A")
+
+  # ============= Vol_Up ==============
+  # rebackKeyStatus = Unit_SendAndGet_v2("key")
+  Fixture_SendAndGet_v2("Open Vol_Up")
+  System.sleep(0.05)
+  preKeyStatus = Unit_SendAndGet_v2("key")
+
+  Fixture_SendAndGet_v2("Close Vol_Up")
+  System.sleep(0.05)
+  currentKeyStatus = Unit_SendAndGet_v2("key")
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "VolUp")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "VolUp")
+  _record = Atlas.create_record(["buttonTest","VolUp"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****") 
+  Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "PMUVolUp")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "PMUVolUp")
+  _record = Atlas.create_record(["buttonTest","PMUVolUp"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****") 
+  Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  # # ============= Double Click ==============
+  Unit_SendAndGet_v2("sep --init")
+  Unit_SendAndGet_v2("sep --sendcmd 0x0 --receive 0x0")
+  response = Unit_SendAndGet_v2("sep -g")
+  clickPre = String_SubStringByPreAndPost(response, "double_click_count =", "\n") onError e -> clickPre = "Can not get correct value!"
+  Fixture_SendAndGet_v2("Open Short Key")
+  System.sleep(0.05)
+  Fixture_SendAndGet_v2("Close Short Key")
+  System.sleep(0.05)
+  Fixture_SendAndGet_v2("Open Short Key")
+  System.sleep(0.1)
+  Fixture_SendAndGet_v2("Close Short Key")
+  System.sleep(0.05)
+  Unit_SendAndGet_v2("sep --sendcmd 0x0 --receive 0x0")
+  response = Unit_SendAndGet_v2("sep -g")
+  clickPost = String_SubStringByPreAndPost(response, "double_click_count =", "\n") onError e -> clickPost = "Can not get correct value!"
+
+  clickRlt = "Can not get correct value!"
+  
+  if FX_String_IsAlphabetOrNumber(clickPre) && FX_String_IsAlphabetOrNumber(clickPost)
+  {
+    clickRlt = numerify(clickPost) - numerify(clickPre)
+    clickRlt = stringify(clickRlt)
+  }
+  _record = Atlas.create_record(["buttonTest","Double_Click_Detect"], FX_String_IsEqual(clickRlt, "1"))
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****")
+  Globals.system.testRecords = Globals.system.testRecords :: _record 
+
+
+# ============= Hold ==============
+  rebackKeyStatus = Unit_SendAndGet_v2("key")
+  Fixture_SendAndGet_v2("Open Short Key")
+  System.sleep(0.05)
+  preKeyStatus = Unit_SendAndGet_v2("key")
+
+  Fixture_SendAndGet_v2("Close Short Key")
+  System.sleep(0.05)
+  currentKeyStatus = Unit_SendAndGet_v2("key")
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "Hold")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "Hold")
+  _record = Atlas.create_record(["buttonTest","Hold"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****") 
+  Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "PMUHold")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "PMUHold")
+  _record = Atlas.create_record(["buttonTest","PMUHold"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****") 
+  Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  # ============= Vol_Down ==============
+  # rebackKeyStatus = Unit_SendAndGet_v2("key")
+  rebackKeyStatus = currentKeyStatus
+  Fixture_SendAndGet_v2("Open Vol_Down")
+  System.sleep(0.05)
+  preKeyStatus = Unit_SendAndGet_v2("key")
+
+  Fixture_SendAndGet_v2("Close Vol_Down")
+  System.sleep(0.05)
+  currentKeyStatus = Unit_SendAndGet_v2("key")
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "VolDn")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "VolDn")
+  _record = Atlas.create_record(["buttonTest","VolDn"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****") 
+  Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  buttonStatus = Func_CheckButtonStatusChange(preKeyStatus, currentKeyStatus, "PMUVolDown")
+  rebackButtonStatus = Func_CheckButtonStatusChange(rebackKeyStatus, preKeyStatus, "PMUVolDown")
+  _record = Atlas.create_record(["buttonTest","PMUVolDown"], buttonStatus && rebackButtonStatus)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****") 
+  Globals.system.testRecords = Globals.system.testRecords :: _record
+
+  _retDict = {}
+  _retDict.output = {}
+
+  return _retDict  
+}
+
+def FX_SAFLEX2_Button_Test(parameter)
+{
+  for i in range(0, 2)
+  {
+    # ============= Ringer ==============
+    # Fixture_SendAndGet_v2("Open Ringer_A")
+    # Fixture_SendAndGet_v2("Open Ringer_B")
+    # FX_Sleep(0.2)
+    # Fixture_SendAndGet_v2("Close Ringer_B")
+    # FX_Sleep(0.3)
+    
+    preKeyStatus = Unit_SendAndGet_v2("key", 15)
+    isRingerPressed = FX_String_IsContain(preKeyStatus, "RingerA=1")
+
+    if isRingerPressed
+    {
+      Unit_SendAndGet_v2("open ringer b", 15)
+      System.sleep(0.2)
+      Unit_SendAndGet_v2("reset ringer b", 15)
+    }
+    else
+    {
+      Unit_SendAndGet_v2("close ringer b", 15)
+      System.sleep(0.2)
+      Unit_SendAndGet_v2("reset ringer b", 15)
+    }
+
+    System.sleep(0.2)
+    currentKeyStatus = Unit_SendAndGet_v2("key", 15)
+
+    if isRingerPressed
+    {
+      Unit_SendAndGet_v2("close ringer b", 15)
+      System.sleep(0.2)
+      Unit_SendAndGet_v2("reset ringer b", 15)
+    }
+    else
+    {
+      Unit_SendAndGet_v2("open ringer b", 15)
+      System.sleep(0.2)
+      Unit_SendAndGet_v2("reset ringer b", 15)
+    }
+
+    System.sleep(0.3)
+    rebackKeyStatus = Unit_SendAndGet_v2("key", 15)
+
+    buttonStatus = Func_CheckButtonStatusChange_SAFLEX2(preKeyStatus, currentKeyStatus, "Ringer")
+    rebackButtonStatus = Func_CheckButtonStatusChange_SAFLEX2(rebackKeyStatus, currentKeyStatus, "Ringer")
+    bol_check1 = buttonStatus && rebackButtonStatus
+
+    # ============= Vol_Up ==============
+    # rebackKeyStatus = Unit_SendAndGet_v2("key", 15)
+    Unit_SendAndGet_v2("Open VolUp Key")
+    System.sleep(0.2)
+    preKeyStatus = Unit_SendAndGet_v2("key", 15)
+
+    Unit_SendAndGet_v2("close VolUp Key")
+    System.sleep(0.2)
+    currentKeyStatus = Unit_SendAndGet_v2("key", 15)
+
+    buttonStatus = Func_CheckButtonStatusChange_SAFLEX2(preKeyStatus, currentKeyStatus, "VolUp")
+    rebackButtonStatus = Func_CheckButtonStatusChange_SAFLEX2(rebackKeyStatus, preKeyStatus, "VolUp")
+    bol_check2 = buttonStatus && rebackButtonStatus
+
+    # # ============= Hold ==============
+    # # rebackKeyStatus = Unit_SendAndGet_v2("key", 15)
+    rebackKeyStatus = currentKeyStatus
+    Unit_SendAndGet_v2("Open Voldn Key")
+    System.sleep(0.2)
+    preKeyStatus = Unit_SendAndGet_v2("key", 15)
+
+    Unit_SendAndGet_v2("close Voldn Key")
+    System.sleep(0.2)
+    currentKeyStatus = Unit_SendAndGet_v2("key", 15)
+
+    buttonStatus = Func_CheckButtonStatusChange_SAFLEX2(preKeyStatus, currentKeyStatus, "VolDn")
+    rebackButtonStatus = Func_CheckButtonStatusChange_SAFLEX2(rebackKeyStatus, preKeyStatus, "VolDn")
+    bol_check3 = buttonStatus && rebackButtonStatus
+    if bol_check1 && bol_check2 && bol_check3
+    {
+      break
+    }
+  }
+
+  #FX_CreateRecord(["Ringer"], bol_check1)
+  #FX_CreateRecord(["VolUp"], bol_check2)
+  #FX_CreateRecord(["VolDn"], bol_check3)
+
+  _record = Atlas.create_record(["buttonTest","Ringer"], bol_check1)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****")   
+  Globals.system.testRecords = Globals.system.testRecords :: _record    
+
+  _record = Atlas.create_record(["buttonTest","VolUp"], bol_check2)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****")   
+  Globals.system.testRecords = Globals.system.testRecords :: _record    
+
+  _record = Atlas.create_record(["buttonTest","VolDn"], bol_check3)
+  logMsg = _generateRecordPlainString(_record)
+  logInfo("*****", "Add Record:", logMsg, "*****")   
+  Globals.system.testRecords = Globals.system.testRecords :: _record        
+
+  buttoncheck = Unit_SendAndGet_v2("key", 15)
+  if FX_String_IsContain(buttoncheck, "RingerA=1", True)
+  {
+    Unit_SendAndGet_v2("close ringer b", 15)
+    System.sleep(0.2)
+  }
+  Unit_SendAndGet_v2("reset ringer b", 15)  
+
+  return _createResponseDict(True,{})
+}
+
+def Func_ParseKeyStatus_SAFLEX2(rawKeyResponse)
+{
+  mapKeyStatus = {};
+  
+  # AP: HoldKey=0 VolDown=0 
+  # PMU: HoldKey=0 VolUp=0 VolDown=0 RingerA=0
+
+  # mapKeyStatus["Hold"] = Regex_FirstMatchOfSubpattern(rawKeyResponse, "HoldKey=(\\d)")[1]
+  #mapKeyStatus["VolUp"] = Regex_FirstMatchOfSubpattern(rawKeyResponse, "VolUp=(\\d)")[1]
+  #mapKeyStatus["VolDn"] = Regex_FirstMatchOfSubpattern(rawKeyResponse, "VolDown=(\\d)")[1]
+  #mapKeyStatus["Ringer"] = Regex_FirstMatchOfSubpattern(rawKeyResponse, "Ringer\\w=(\\d)")[1]
+  mapKeyStatus["VolUp"] = Regex.groups(rawKeyResponse, "VolUp=(\\d)", 16)[0] onError e -> mapKeyStatus["VolUp"] = "-1"
+  mapKeyStatus["VolDn"] = Regex.groups(rawKeyResponse, "VolDown=(\\d)", 16)[0] onError e -> mapKeyStatus["VolDn"] = "-1"
+  mapKeyStatus["Ringer"] = Regex.groups(rawKeyResponse, "Ringer\\w=(\\d)", 16)[0] onError e -> mapKeyStatus["Ringer"] = "-1"
+  
+  # pmuKeyResponse = String_SubStringByPreAndPost(rawKeyResponse, "PMU:", "")
+  # mapKeyStatus["PMUHold"] = Regex_FirstMatchOfSubpattern(pmuKeyResponse, "HoldKey=(\\d)")[1]
+  # mapKeyStatus["PMURinger"] = Regex_FirstMatchOfSubpattern(pmuKeyResponse, "Ringer\\w=(\\d)")[1]
+  # mapKeyStatus["PMUVolDown"] = Regex_FirstMatchOfSubpattern(pmuKeyResponse, "VolDown=(\\d)")[1]
+
+  return mapKeyStatus
+}
+
+
+def Func_CheckButtonStatusChange_SAFLEX2(rawKeyStatus1, rawKeyStatus2, focusButton)
+{
+  mapKeyStatus1 = Func_ParseKeyStatus_SAFLEX2(rawKeyStatus1)
+  mapKeyStatus2 = Func_ParseKeyStatus_SAFLEX2(rawKeyStatus2)
+
+  mapChangeCount={} ;
+  mapChangeCount["Ringer"] = 0
+  mapChangeCount["VolUp"] = 0
+  mapChangeCount["VolDn"] = 0
+  # mapChangeCount["Hold"] = 0
+
+  # mapChangeCount["PMURinger"] = 0
+  # mapChangeCount["PMUVolDown"] = 0
+  # mapChangeCount["PMUHold"] = 0
+
+  for key in keys(mapChangeCount)
+  {
+    if mapKeyStatus1[key] != mapKeyStatus2[key]
+    {
+      mapChangeCount[key] = 1
+    }
+  }
+
+  apKeyCount = mapChangeCount["Ringer"]+mapChangeCount["VolDn"] +mapChangeCount["VolUp"]
+  # pmuKeyCount = mapChangeCount["PMURinger"]+mapChangeCount["PMUVolDown"] +mapChangeCount["PMUHold"]
+  focusKeyCount = mapChangeCount[focusButton]
+
+  if FX_String_IsContain(focusButton, "PMU")
+  {
+    return pmuKeyCount == 1 && focusKeyCount == 1
+  }
+
+  return apKeyCount == 1 && focusKeyCount == 1
+}
+
+
+def Func_ParseKeyStatus(rawKeyResponse)
+{
+  mapKeyStatus = {}
+  
+  # AP: HoldKey=0 VolUp=0 VolDown=0 
+  # PMU: HoldKey=0 VolUp=0 VolDown=0 RingerA=1 
+  apKeyResponse = String_SubStringByPreAndPost(rawKeyResponse, "AP:", "PMU: ") onError e -> apKeyResponse = ""
+  # mapKeyStatus["Hold"] = FX_Regex_FirstMatchOfSubpattern(apKeyResponse, "HoldKey=(\\d)")[1] onError e -> mapKeyStatus["Hold"] = "-1"
+  mapKeyStatus["Hold"] = Regex.groups(apKeyResponse, "HoldKey=(\\d)", 16)[0] onError e -> mapKeyStatus["Hold"] = "-1"
+  # mapKeyStatus["VolUp"] = FX_Regex_FirstMatchOfSubpattern(apKeyResponse, "VolUp=(\\d)")[1] onError e -> mapKeyStatus["VolUp"] = "-1"
+  mapKeyStatus["VolUp"] = Regex.groups(apKeyResponse, "VolUp=(\\d)", 16)[0] onError e -> mapKeyStatus["VolUp"] = "-1"
+  # mapKeyStatus["VolDn"] = FX_Regex_FirstMatchOfSubpattern(apKeyResponse, "VolDown=(\\d)")[1] onError e -> mapKeyStatus["VolDn"] = "-1"
+  mapKeyStatus["VolDn"] = Regex.groups(apKeyResponse, "VolDown=(\\d)", 16)[0] onError e -> mapKeyStatus["VolDn"] = "-1"
+  # mapKeyStatus["Ringer"] = FX_Regex_FirstMatchOfSubpattern(apKeyResponse, "Ringer\\w=(\\d)")[1] onError e -> mapKeyStatus["Ringer"] = "-1"
+  mapKeyStatus["Ringer"] = Regex.groups(apKeyResponse, "Ringer\\w=(\\d)", 16)[0] onError e -> mapKeyStatus["Ringer"] = "-1"
+  # mapKeyStatus["Ringer"] = "-1"
+  
+  pmuKeyResponse = String_SubStringByPreAndPost(rawKeyResponse, "PMU:", "") onError e -> pmuKeyResponse = ""
+  # mapKeyStatus["PMUHold"] = FX_Regex_FirstMatchOfSubpattern(pmuKeyResponse, "HoldKey=(\\d)")[1] onError e -> mapKeyStatus["PMUHold"] = "-1"
+  mapKeyStatus["PMUHold"] = Regex.groups(pmuKeyResponse, "HoldKey=(\\d)", 16)[0] onError e -> mapKeyStatus["PMUHold"] = "-1"
+  # mapKeyStatus["PMURinger"] = FX_Regex_FirstMatchOfSubpattern(pmuKeyResponse, "Ringer\\w=(\\d)")[1] onError e -> mapKeyStatus["PMURinger"] = "-1"
+  mapKeyStatus["PMURinger"] = Regex.groups(pmuKeyResponse, "Ringer\\w=(\\d)", 16)[0] onError e -> mapKeyStatus["PMURinger"] = "-1"
+  # mapKeyStatus["PMUVolUp"] = FX_Regex_FirstMatchOfSubpattern(pmuKeyResponse, "VolUp=(\\d)")[1] onError e -> mapKeyStatus["PMUVolUp"] = "-1"
+  mapKeyStatus["PMUVolUp"] = Regex.groups(pmuKeyResponse, "VolUp=(\\d)", 16)[0] onError e -> mapKeyStatus["PMUVolUp"] = "-1"
+  # mapKeyStatus["PMUVolDown"] = FX_Regex_FirstMatchOfSubpattern(pmuKeyResponse, "VolDown=(\\d)")[1] onError e -> mapKeyStatus["PMUVolDown"] = "-1"
+  mapKeyStatus["PMUVolDown"] = Regex.groups(pmuKeyResponse, "VolDown=(\\d)", 16)[0] onError e -> mapKeyStatus["PMUVolDown"] = "-1"
+
+  # UI_ShowMessage(mapKeyStatus)
+  return mapKeyStatus
+}
+
+def Func_CheckButtonStatusChange(rawKeyStatus1, rawKeyStatus2, focusButton)
+{
+  mapKeyStatus1 = Func_ParseKeyStatus(rawKeyStatus1)
+  mapKeyStatus2 = Func_ParseKeyStatus(rawKeyStatus2)
+
+  mapChangeCount={} ;
+  mapChangeCount["Ringer"] = 0
+  mapChangeCount["VolUp"] = 0
+  mapChangeCount["VolDn"] = 0
+  mapChangeCount["Hold"] = 0
+
+  mapChangeCount["PMURinger"] = 0
+  mapChangeCount["PMUVolDown"] = 0
+  mapChangeCount["PMUVolUp"] = 0
+  mapChangeCount["PMUHold"] = 0
+
+  for key in keys(mapChangeCount)
+  {
+    if mapKeyStatus1[key] != mapKeyStatus2[key]
+    {
+      mapChangeCount[key] = 1
+    }
+  }
+
+  apKeyCount = mapChangeCount["Ringer"]+mapChangeCount["VolDn"] +mapChangeCount["VolUp"]+mapChangeCount["Hold"]
+  pmuKeyCount = mapChangeCount["PMURinger"]+mapChangeCount["PMUVolDown"] +mapChangeCount["PMUHold"] +mapChangeCount["PMUVolUp"]
+  focusKeyCount = mapChangeCount[focusButton]
+
+  if FX_String_IsContain(focusButton, "PMU")
+  {
+    return pmuKeyCount == 1 && focusKeyCount == 1
+  }
+
+  return apKeyCount == 1 && focusKeyCount == 1
+}

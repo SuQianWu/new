@@ -1,0 +1,298 @@
+def String_SubStringByPreAndPost(source, prefix, postfix)
+{
+  #prefix = Atlas.call_plugin("RegexPlugin", "escape", {"string": prefix})
+  #postfix = Atlas.call_plugin("RegexPlugin", "escape", {"string": postfix})
+
+  if prefix == "" { prefix = "\\A" }
+  if postfix == "" { postfix = "\\Z" }
+
+  pattern = prefix + "([\\s\\S]+?)" + postfix
+  output = Regex_FirstMatchOfSubpattern(source, pattern)[1]
+  # output = Regex.matches(source, pattern, 16)[0]
+  output = String_TrimSpace(output)
+  return output
+}
+
+
+def String_TrimSpace(source)
+{
+  #pattern = "\\A\\s*" + "([\\s\\S]+?)" + "\\s*\\Z"
+  #output = Atlas.call_plugin("RegexPlugin", "replace", {"string": source, "pattern": pattern, "template": "$1"})
+  #return output
+  source = Regex.replace(source, "^\\s+", "", 16)
+  source = Regex.replace(source, "\\s+$", "", 16)  
+  return source
+}
+
+# # String_IsContain(source, stringToFind[, ignoreCase=False])
+def String_IsContain(source, stringToFind, optionalArgs...)
+{
+  ignoreCase = False
+  if size(optionalArgs) > 0
+  { 
+    ignoreCase = optionalArgs[0]
+  }
+
+  #stringToFind = Atlas.call_plugin("RegexPlugin", "escape", {"string": stringToFind})
+
+  pattern = ""
+  if(ignoreCase) { pattern = pattern + "(?i)" }
+  pattern = pattern + stringToFind
+
+  return Regex_IsMatch(source, pattern)
+}
+
+def String_IsNullOrEmpty(string)
+{
+  return !isString(string) || size(string) == 0
+}
+#String_IsEqual(str_Val1, str_Val2[,ignoreCase = False])
+def String_IsEqual(str_Val1, str_Val2, optionalArgs...)
+{
+  ignoreCase = False
+  if size(optionalArgs) > 0
+  { 
+    ignoreCase = optionalArgs[0]
+  }
+
+  if ignoreCase == True
+  {
+    str_Val1 = String_ToUpper(str_Val1)
+    str_Val2 = String_ToUpper(str_Val2)
+  }   
+   return str_Val1 == str_Val2
+  
+}
+
+def String_IsAlphabetOrNumber(source)
+{
+  pattern = "\\A([0-9a-zA-Z]+?)\\Z"
+  return Regex_IsMatch(source, pattern)
+}
+
+def combineAndFormatString(parameter)
+{
+    atlasLogInfo("combineAndFormatString parameter :", parameter)
+
+    strPreValue = parameter.input.customKey onError e-> if True{
+        strPreValue = parameter.input.defaultKey
+    }
+
+    bFlip = parameter.flip onError e-> bFlip = False
+    strOriginal = ""
+    if (isNil(strPreValue) || strPreValue == ""){
+        return _createResponseDict(False,{})
+    }
+    else
+    {
+        strAll = Strings.splice(strPreValue," ","")
+        strAll = Strings.splice(strAll,"0x","")
+        if (size(strAll) < 8){
+            return _createResponseDict(False,{})
+        }
+        else{
+            strOriginal = strAll
+        }
+    }
+
+    iOriginal = size(strOriginal)
+    if (iOriginal % 8 != 0){
+        # NOTE: Here is append  '0' if it's less than 8 bits. I am not sure it's '0' or 'F'.
+        for i in range(0,(8 - iOriginal%8)){
+            strOriginal = strOriginal + "0"
+        }
+    }
+    strFormat = ""
+    for j in range(0,size(strOriginal),8){
+        strOne = strOriginal[j:(j+8)]
+
+        arrPart = Regex.groups(strOne, ".{0}(.{2})", 8)
+        # atlasLogInfo("arrPart is ", arrPart)
+        strPart1 = arrPart[0]
+        strPart2 = arrPart[1]
+        strPart3 = arrPart[2]
+        strPart4 = arrPart[3]
+        atlasLogInfo("strPart is ", strPart1, strPart2, strPart3, strPart4)
+        if (bFlip){
+            strFormat = strFormat + "0x" + strPart4 + strPart3 + strPart2 + strPart1 + " "
+        }else{
+            strFormat = strFormat + "0x" + strPart1 + strPart2 + strPart3 + strPart4 + " "
+        }
+    }
+    strFormat = strFormat[:(size(strFormat)-1)]
+    atlasLogInfo("The final result is " + strFormat)
+    return _createResponseDict(True,{parameter.output[0] : strFormat})
+}
+
+def String_endWith(strSource,strEnd)
+{
+    if (isNil(strEnd) or isNil(strSource)) {
+        return False
+    }
+    arrRange = Strings.ranges_of_substring(strSource,strEnd)
+    if(arrRange != Nil){
+        for arrOne in arrRange
+        {
+            if(arrOne[0]+arrOne[1] == size(strSource))
+            {
+                return True
+            }
+        }
+    }
+    return False
+}
+
+def String_Replace(source, oldValue, newValue)
+{
+  _result = Regex.replace(source, oldValue, newValue,16)
+
+  return _result
+}
+
+#======================================================================================#
+def FX_String_TrimEnd(source, postfix)
+{
+  postfix = Atlas.call_plugin("RegexPlugin", "escape", {"string": postfix})
+  output = Atlas.call_plugin("RegexPlugin", "replace", {"string": source, "pattern": postfix + "\\Z", "template": ""})
+  return output
+}
+
+def FX_String_TrimBegin(source, prefix)
+{
+  prefix = Atlas.call_plugin("RegexPlugin", "escape", {"string": prefix})
+  output = Atlas.call_plugin("RegexPlugin", "replace", {"string": source, "pattern": "\\A" + prefix, "template": ""})
+  return output
+}
+
+# def String_Replace(source, oldValue, newValue)
+# {
+#   _result = Regex.replace(source, oldValue, newValue,16)
+
+#   return _result
+# }
+
+# def String_SubStringByPreAndPost(source, prefix, postfix)
+# {
+#   # prefix = Atlas.call_plugin("RegexPlugin", "escape", {"string": prefix})
+#   # postfix = Atlas.call_plugin("RegexPlugin", "escape", {"string": postfix})
+
+#   if prefix == "" { prefix = "\\A" }
+#   if postfix == "" { postfix = "\\Z" }
+
+#   pattern = prefix + "([\\s\\S]+?)" + postfix
+#   output = FX_Regex_FirstMatchOfSubpattern(source, pattern)[1]
+#   # output = Regex.matches(source, pattern, 16)[0]
+#   output = FX_String_TrimSpace(output)
+#   return output
+# }
+
+
+def FX_String_TrimSpace(source)
+{
+  # pattern = "\\A\\s*" + "([\\s\\S]+?)" + "\\s*\\Z"
+  # output = Atlas.call_plugin("FXRegexPlugin", "replace", {"string": source, "pattern": pattern, "template": "$1"})
+  # return output
+
+  source = Regex.replace(source, "^\\s+", "", 16)
+  source = Regex.replace(source, "\\s+$", "", 16)  
+  return source
+}
+
+# # FX_String_IsContain(source, stringToFind[, ignoreCase=False])
+def FX_String_IsContain(source, stringToFind, optionalArgs...)
+{
+  ignoreCase = False
+  if size(optionalArgs) > 0
+  { 
+    ignoreCase = optionalArgs[0]
+  }
+
+  # stringToFind = Atlas.call_plugin("RegexPlugin", "escape", {"string": stringToFind})
+
+  pattern = ""
+  if(ignoreCase) { pattern = pattern + "(?i)" }
+  pattern = pattern + stringToFind
+
+  return FX_Regex_IsMatch(source, pattern)
+}
+
+def FX_String_IsNullOrEmpty(string)
+{
+  return !isString(string) || size(string) == 0
+}
+#FX_String_IsEqual(str_Val1, str_Val2[,ignoreCase = False])
+def FX_String_IsEqual(str_Val1, str_Val2, optionalArgs...)
+{
+  ignoreCase = False
+  if size(optionalArgs) > 0
+  { 
+    ignoreCase = optionalArgs[0]
+  }
+
+  if ignoreCase == True
+  {
+    str_Val1 = FX_String_ToUpper(str_Val1)
+    str_Val2 = FX_String_ToUpper(str_Val2)
+  }   
+   return str_Val1 == str_Val2
+  
+}
+
+def FX_String_IsAlphabetOrNumber(source)
+{
+  pattern = "\\A([0-9a-zA-Z]+?)\\Z"
+  return FX_Regex_IsMatch(source, pattern)
+}
+
+def Func_GetSubStringFromArray(array, beginIndex, endIndex)
+{
+
+  if size(array) < endIndex || beginIndex > endIndex || beginIndex < 0
+  {
+    
+    raise exception(Atlas.Exceptions.InvalidParameter,"","Invalid Array Index Paramater")
+  }
+  string = ""
+  for i in  range(beginIndex, endIndex + 1)
+  {
+    string = string + array[i-1]
+  }
+
+  return string
+
+}
+
+def Func_StringToArray(str_data, count)
+{
+
+  str_data = String_Replace(str_data, "0x", "")
+  tmp_array = tokenize(str_data, " ")
+  array = []
+  if size(tmp_array) != count
+  {
+    raise exception(Atlas.Exceptions.InvalidParameter,"","The array size not invalid!")
+  }
+  int_index = 0
+  for i in range(0, size(tmp_array))
+  {
+    for j in range(0, 4)
+    {
+      tmpstring = tmp_array[i]
+      str_index = String_SubStringByFixLength(tmpstring, 6-j*2, 2)
+      array = array + [str_index]
+    }
+      
+  }
+
+  return array
+
+}
+
+def String_SubStringByFixLength(source, startIndex, length)
+{
+  if startIndex > size(source)  
+  {
+    return ""
+  }
+  return source[startIndex:startIndex+length]
+}

@@ -1,0 +1,3 @@
+"Test Name","Test Actions","Test Parameters","Test Commands","Stop On Error","Retry Times"
+"ScanSN","Rush:popUpInputBox","{""message"": ""请刷入机台的SN:"", ""output"": [""Scan_SN""]}","","",""
+"","Rush:createRecord","{""input"":{""customKey"":""Scan_SN""}}","","",""

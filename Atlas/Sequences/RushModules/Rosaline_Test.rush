@@ -1,0 +1,254 @@
+def createRosalineNVMData(parameter){
+
+  str_RomeoRes = parameter.input.customKey onError e -> if True {
+    str_RomeoRes = parameter.input.defaultKey
+  }
+  map_Result = {}
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000000:", "00000010:", 7)
+  map_Result["Post-DA_Test_Bit0_1"] = Convert_HexStringToNumberByBits(str_Rlt, 6, 7)
+  map_Result["Pre-DA_Audit_Test"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 5)
+  map_Result["Pre-DA_Test"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000000:", "00000010:", 8)
+  map_Result["Yogi_Prog_Flag"] = Convert_HexStringToNumberByBits(str_Rlt, 7, 7)
+  map_Result["Burn_In"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 6)
+  map_Result["Gimbal_Test"] = Convert_HexStringToNumberByBits(str_Rlt, 1, 3)
+  map_Result["Post-DA_Test_Bit2"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 0)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000030:", "00000040:", 13)
+  map_Result["Yogi_Trace_ID3"] = str_Rlt
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000030:", "00000040:", 14)
+  map_Result["Yogi_Trace_ID2"] = str_Rlt
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000030:", "00000040:", 15)
+  map_Result["Yogi_Trace_ID1"] = str_Rlt
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000030:", "00000040:", 16)
+  map_Result["Yogi_Trace_ID0"] = str_Rlt
+  map_Result["Yogi_Trace_ID"] = "0x" + map_Result["Yogi_Trace_ID3"] + map_Result["Yogi_Trace_ID2"] + map_Result["Yogi_Trace_ID1"] + map_Result["Yogi_Trace_ID0"]
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000050:", "00000060:", 11)
+  map_Result["Valencia_Position-On-Wafer_X"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000050:", "00000060:", 12)
+  map_Result["Valencia_Position-On-Wafer_Y"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000060:", "00000070:", 15)
+  map_Result["Escalus_Diffuser_Position-on-wafer_X"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000060:", "00000070:", 16)
+  map_Result["Escalus_Diffuser_Position-on-wafer_Y"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt_Cali_70 = Func_GetDataForMatrix(str_RomeoRes,"00000070:", "OK", 1)
+  str_Rlt_Cali_71 = Func_GetDataForMatrix(str_RomeoRes,"00000070:", "OK", 2)
+  map_Result["Rosaline_Calibration_Current"] = Convert_HexStringToNumber("0x" + str_Rlt_Cali_71 + str_Rlt_Cali_70)*0.025
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000070:", "OK", 4)
+  map_Result["Interposer_Vendor_ID"] = Convert_HexStringToNumberByBits(str_Rlt, 6, 7)
+  map_Result["Valencia_Vendor_ID"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 5)
+  map_Result["Pulse_width_limit"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 3)
+  if (map_Result["Pulse_width_limit"] == 0)
+  {
+      map_Result["Pulse_width_limit"] = 3.6
+  }
+  else if map_Result["Pulse_width_limit"] == 1
+  {
+      map_Result["Pulse_width_limit"] = 7.5
+  }
+  else if map_Result["Pulse_width_limit"] == 2
+  {
+      map_Result["Pulse_width_limit"] = 9
+  }
+  else
+  {
+      map_Result["Pulse_width_limit"] = "UnKnown Rosaline_Pulse_Width"
+  }
+  map_Result["Valencia_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000070:", "OK", 7)
+  map_Result["VCSEL_Clip"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  return _createResponseDict(True,map_Result)
+}
+
+def createRosalineNVMData_D32(parameter){
+
+  str_RomeoRes = parameter.input.customKey onError e -> if True {
+    str_RomeoRes = parameter.input.defaultKey
+  }
+  map_Result = {}
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000000:", "00000010:", 7)
+  map_Result["Post-DA_Test_Bit0_1"] = Convert_HexStringToNumberByBits(str_Rlt, 6, 7)
+  map_Result["Pre-DA_Audit_Test"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 5)
+  map_Result["Pre-DA_Test"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000000:", "00000010:", 8)
+  map_Result["Yogi_Prog_Flag"] = Convert_HexStringToNumberByBits(str_Rlt, 7, 7)
+  map_Result["Burn_In"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 6)
+  map_Result["Gimbal_Test"] = Convert_HexStringToNumberByBits(str_Rlt, 1, 3)
+  map_Result["Post-DA_Test_Bit2"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 0)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000030:", "00000040:", 13)
+  map_Result["Yogi_Trace_ID3"] = str_Rlt
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000030:", "00000040:", 14)
+  map_Result["Yogi_Trace_ID2"] = str_Rlt
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000030:", "00000040:", 15)
+  map_Result["Yogi_Trace_ID1"] = str_Rlt
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000030:", "00000040:", 16)
+  map_Result["Yogi_Trace_ID0"] = str_Rlt
+  map_Result["Yogi_Trace_ID"] = "0x" + map_Result["Yogi_Trace_ID3"] + map_Result["Yogi_Trace_ID2"] + map_Result["Yogi_Trace_ID1"] + map_Result["Yogi_Trace_ID0"]
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000050:", "00000060:", 11)
+  map_Result["Valencia_Position-On-Wafer_X"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000050:", "00000060:", 12)
+  map_Result["Valencia_Position-On-Wafer_Y"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000060:", "00000070:", 15)
+  map_Result["Escalus_Diffuser_Position-on-wafer_X"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000060:", "00000070:", 16)
+  map_Result["Escalus_Diffuser_Position-on-wafer_Y"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt_Cali_70 = Func_GetDataForMatrix(str_RomeoRes,"00000070:", "OK", 1)
+  str_Rlt_Cali_71 = Func_GetDataForMatrix(str_RomeoRes,"00000070:", "OK", 2)
+  map_Result["Rosaline_Calibration_Current"] = Convert_HexStringToNumber("0x" + str_Rlt_Cali_71 + str_Rlt_Cali_70)*0.025
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000070:", "OK", 4)
+  map_Result["Interposer_Vendor_ID"] = Convert_HexStringToNumberByBits(str_Rlt, 6, 7)
+  map_Result["Valencia_Vendor_ID"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 5)
+  map_Result["Rosaline_Pulse_Width"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 3)
+  if (map_Result["Rosaline_Pulse_Width"] == 0)
+  {
+      map_Result["Rosaline_Pulse_Width"] = 3.6
+  }
+  else if map_Result["Rosaline_Pulse_Width"] == 1
+  {
+      map_Result["Rosaline_Pulse_Width"] = 7.5
+  }
+  else if map_Result["Rosaline_Pulse_Width"] == 2
+  {
+      map_Result["Rosaline_Pulse_Width"] = 9
+  }
+  else
+  {
+      map_Result["Rosaline_Pulse_Width"] = "UnKnown Rosaline_Pulse_Width"
+  }
+
+  map_Result["Valencia_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  return _createResponseDict(True,map_Result)
+}
+
+readRosalineNVM (parameter) {
+  # commands = parameter.command
+
+  # # ======== Rxcl ===
+  # # commands = Config_GetCommands("Burn_RxCL")
+  # commands = commands::commands[0]
+  # str_temp = Unit_SendManyAndGet(commands, 1, 99, "sensor --sel prox --get nvm", 10)
+  str_temp = parameter.input.customKey onError e -> if True {
+    str_temp = parameter.input.defaultKey
+  }
+
+  UI_ShowMessage(str_temp)
+  response = Func_GetRxCLSyscfgValue(str_temp)
+  str_RxCL = Func_Transfer_RegisterValue_Syscfg(response, "", "")
+  str_RxCL = FX_String_TrimSpace(str_RxCL)
+  Item_BurnSyscfgKey("Burn_RxCL", "RxCL", str_RxCL, "")
+  
+  map_RosalineNVM = {}
+  map_RosalineNVM = Func_RosalineNVM(str_temp)
+
+  # Item_Config_CheckSpec("Rosaline_Post-DA_Test_Bit0_1", map_RosalineNVM["Post-DA_Test_Bit0_1"])
+  # Item_Config_CheckSpec("Rosaline_Pre-DA_Audit_Test", map_RosalineNVM["Pre-DA_Audit_Test"])
+
+  # str_RosalineSN = FX_String_SubStringByFixLength(str_RosalineSN, 4, 2) 
+
+  # Item_Config_CheckSpec("Rosaline_Pre-DA_Test", map_RosalineNVM["Pre-DA_Test"])
+  # Item_Config_CheckSpec("Rosaline_Yogi_Prog_Flag", map_RosalineNVM["Yogi_Prog_Flag"])
+  # Item_Config_CheckSpec("Rosaline_Burn_In", map_RosalineNVM["Burn_In"])
+  # Item_Config_CheckSpec("Rosaline_Gimbal_Test", map_RosalineNVM["Gimbal_Test"])
+  # Item_Config_CheckSpec("Rosaline_Post-DA_Test_Bit2", map_RosalineNVM["Post-DA_Test_Bit2"])
+  # Item_Config_CheckSpec("Rosaline_Calibration_Current", map_RosalineNVM["Rosaline_Calibration_Current"])
+  # Item_Config_CheckSpec("Rosaline_Pulse_width_limit", map_RosalineNVM["Pulse_width_limit"])  
+
+
+  return _createResponseDict(True,map_RosalineNVM)
+}
+
+Func_RosalineNVM(str_RawData)
+{
+  map_Result = {}
+  str_RomeoRes = String_SubStringByPreAndPost(str_RawData, "nvm =","")
+    
+  # =============  Rosaline_NVM Data =============
+  # ======= 0xB8 ------ 0xC0
+  # 0x0
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000000:", "00000010:", 7)
+  map_Result["Post-DA_Test_Bit0_1"] = Convert_HexStringToNumberByBits(str_Rlt, 6, 7)
+  map_Result["Pre-DA_Audit_Test"] = Convert_HexStringToNumberByBits(str_Rlt, 3, 5)
+  map_Result["Pre-DA_Test"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 2)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000000:", "00000010:", 8)
+  map_Result["Yogi_Prog_Flag"] = Convert_HexStringToNumberByBits(str_Rlt, 7, 7)
+  map_Result["Burn_In"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 6)
+  map_Result["Gimbal_Test"] = Convert_HexStringToNumberByBits(str_Rlt, 1, 3)
+  map_Result["Post-DA_Test_Bit2"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 0)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000030:", "00000040:", 13)
+  map_Result["Yogi_Trace_ID3"] = str_Rlt
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000030:", "00000040:", 14)
+  map_Result["Yogi_Trace_ID2"] = str_Rlt
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000030:", "00000040:", 15)
+  map_Result["Yogi_Trace_ID1"] = str_Rlt
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000030:", "00000040:", 16)
+  map_Result["Yogi_Trace_ID0"] = str_Rlt
+  map_Result["Yogi_Trace_ID"] = "0x" + map_Result["Yogi_Trace_ID3"] + map_Result["Yogi_Trace_ID2"] + map_Result["Yogi_Trace_ID1"] + map_Result["Yogi_Trace_ID0"]
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000050:", "00000060:", 11)
+  map_Result["Valencia_Position-On-Wafer_X"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000050:", "00000060:", 12)
+  map_Result["Valencia_Position-On-Wafer_Y"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000060:", "00000070:", 15)
+  map_Result["Escalus_Diffuser_Position-on-wafer_X"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000060:", "00000070:", 16)
+  map_Result["Escalus_Diffuser_Position-on-wafer_Y"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 7)
+
+  str_Rlt_Cali_70 = Func_GetDataForMatrix(str_RomeoRes,"00000070:", "OK", 1)
+  str_Rlt_Cali_71 = Func_GetDataForMatrix(str_RomeoRes,"00000070:", "OK", 2)
+  map_Result["Rosaline_Calibration_Current"] = Convert_HexStringToNumber("0x" + str_Rlt_Cali_71 + str_Rlt_Cali_70)*0.025
+
+  str_Rlt = Func_GetDataForMatrix(str_RomeoRes,"00000070:", "OK", 4)
+  map_Result["Interposer_Vendor_ID"] = Convert_HexStringToNumberByBits(str_Rlt, 6, 7)
+  map_Result["Valencia_Vendor_ID"] = Convert_HexStringToNumberByBits(str_Rlt, 4, 5)
+  map_Result["Pulse_width_limit"] = Convert_HexStringToNumberByBits(str_Rlt, 2, 3)
+  if (map_Result["Pulse_width_limit"] == 0)
+  {
+      map_Result["Pulse_width_limit"] = 3.6
+  }
+  else if map_Result["Pulse_width_limit"] == 1
+  {
+      map_Result["Pulse_width_limit"] = 7.5
+  }
+  else if map_Result["Pulse_width_limit"] == 2
+  {
+      map_Result["Pulse_width_limit"] = 9
+  }
+  else
+  {
+      map_Result["Pulse_width_limit"] = "UnKnown Rosaline_Pulse_Width"
+  }
+  map_Result["Valencia_Version"] = Convert_HexStringToNumberByBits(str_Rlt, 0, 1)
+
+  return map_Result
+}

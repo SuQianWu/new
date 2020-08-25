@@ -1,0 +1,143 @@
+# # input:
+# # Serial:s1 Location:L1
+# # Serial:s2 Location:L2
+# # Serial:s3 Location:L3
+
+# # pattern:
+# # Serial:.+ (Location:.+)
+
+# # //Match first and return a string
+# # //output:
+# # //output = Serial:s1 Location:L1
+def Regex_FirstMatch(string, pattern)
+{
+  # return Atlas.call_plugin("RegexPlugin", "firstMatch", {"string": string, "pattern": pattern})
+  return Regex.matches(string, pattern, 16)[0]
+}
+
+# //Match all and return an array of string
+# //output:
+# //[0] = Serial:s1 Location:L1
+# //[1] = Serial:s2 Location:L2
+# //[2] = Serial:s3 Location:L3
+def Regex_Matches(string, pattern)
+{
+  # return Atlas.call_plugin("RegexPlugin", "matches", {"string": string, "pattern": pattern})
+  return Regex.matches(string, pattern, 16)
+}
+
+# //Match first and return an array of all substring
+# //output:
+# //[0] = Serial:s1 Location:L1
+# //[1] = Location:L1
+def Regex_FirstMatchOfSubpattern(string, pattern)
+{
+	_firstMatchString =  Regex.matches(string, pattern, 16)[0]
+	_groups = Regex.groups(_firstMatchString, pattern, 16)
+
+	return [_firstMatchString] + _groups
+
+  # return Atlas.call_plugin("RegexPlugin", "firstMatchOfSubpattern", {"string": string, "pattern": pattern})
+}
+
+# //Match all and return an two-dim array of all matches of all substring
+# //output:
+# //[0][0] = Serial:s1 Location:L1
+# //[0][1] = Location:L1
+# //[1][0] = Serial:s2 Location:L2
+# //[1][1] = Location:L2
+# //[2][0] = Serial:s3 Location:L3
+# //[2][1] = Location:L3
+def Regex_MatchesOfSubpattern(string, pattern)
+{
+	_retDict = []
+	_matches =  Regex.matches(string, pattern, 16)
+
+	for _match in _matches {
+		_groups = Regex.groups(_match, pattern, 16)		
+		_retDict = _retDict + [[_match] + _groups]
+	}
+
+	return _retDict
+  # return Atlas.call_plugin("RegexPlugin", "matchesOfSubpattern", {"string": string, "pattern": pattern})
+}
+# }
+
+def Regex_IsMatch(source, pattern)
+{  
+  _matches = Regex.matches(source, pattern,16)
+  
+  return choice(size(_matches)>0,True,False)
+}
+
+def regularExpressionProcessor(parameter) {
+
+  _string = parameter.input.customKey onError e -> if True {
+    _string = parameter.input.defaultKey
+  }
+  
+  _matches = Regex.matches(_string, parameter.pattern, 16)
+
+  _retDict = {}
+  _retDict.output = {}
+
+  _retDict.output = {parameter.output[0] : _matches}
+
+  return _retDict  
+}
+
+#======================================================================================#
+def FX_Regex_IsMatch(source, pattern)
+{  
+  _matches = Regex.matches(source, pattern,16)
+  
+  return choice(size(_matches)>0,True,False)
+}
+
+def FX_Regex_FirstMatch(string, pattern)
+{
+  # return Atlas.call_plugin("RegexPlugin", "firstMatch", {"string": string, "pattern": pattern})
+  return Regex.matches(string, pattern, 16)[0]
+}
+
+def FX_Regex_Matches(string, pattern)
+{
+  # return Atlas.call_plugin("RegexPlugin", "matches", {"string": string, "pattern": pattern})
+  return Regex.matches(string, pattern, 16)
+}
+
+# //Match first and return an array of all substring
+# //output:
+# //[0] = Serial:s1 Location:L1
+# //[1] = Location:L1
+def FX_Regex_FirstMatchOfSubpattern(string, pattern)
+{
+  _firstMatchString =  Regex.matches(string, pattern, 16)[0]
+  _groups = Regex.groups(_firstMatchString, pattern, 16)
+
+  return [_firstMatchString] + _groups
+
+  # return Atlas.call_plugin("RegexPlugin", "firstMatchOfSubpattern", {"string": string, "pattern": pattern})
+}
+
+# //Match all and return an two-dim array of all matches of all substring
+# //output:
+# //[0][0] = Serial:s1 Location:L1
+# //[0][1] = Location:L1
+# //[1][0] = Serial:s2 Location:L2
+# //[1][1] = Location:L2
+# //[2][0] = Serial:s3 Location:L3
+# //[2][1] = Location:L3
+def FX_Regex_MatchesOfSubpattern(string, pattern)
+{
+  _retDict = []
+  _matches =  Regex.matches(string, pattern, 16)
+
+  for _match in _matches {
+    _groups = Regex.groups(_match, pattern, 16)   
+    _retDict = _retDict + [[_match] + _groups]
+  }
+
+  return _retDict
+  # return Atlas.call_plugin("RegexPlugin", "matchesOfSubpattern", {"string": string, "pattern": pattern})
+}

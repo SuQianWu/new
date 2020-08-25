@@ -1,0 +1,36 @@
+def getAccelResponse(dicSetting){
+  accelRes = ""
+  bresult = True
+  for i in range(0,20){
+    dicOneCmd = {"command":"Haccel get 5","output":["accelRes"]}
+    oneResDic = SendCmdToNFC(dicOneCmd)
+    #atlasLogInfo("katherine log: oneResDic",oneResDic)
+    oneResult = oneResDic.result
+    if (oneResult == False){
+      #atlasLogInfo("katherine log: oneResult",oneResult)
+      bresult = False
+      break
+    }
+    oneRes = oneResDic.output.accelRes
+    accelRes = accelRes + oneRes
+  }
+  #atlasLogInfo("katherine log: accelData",accelRes)
+  _groups = Regex.groups(accelRes, "accel get 5.*?(X:.*?)AVERAGE", 8)
+  #atlasLogInfo("katherine log: _groups",_groups)
+  accelData = ""
+  for _group in _groups {
+    _group = Regex.replace(_group, "^\\s+", "", 16)
+    _group = Regex.replace(_group, "\\s+$", "", 16)
+    _group = Regex.replace(_group, "\\r+", "\n", 16)
+    # _group = Regex.replace(_group, "\\n+$", "\n", 16)
+    _group = Regex.replace(_group, "^\\n+", "", 16)
+    _group = Regex.replace(_group, "\\n+$", "", 16)
+
+    accelData = accelData + _group + "\n"
+  }
+  reDic = {
+    "result" : bresult,
+    "output" :  {dicSetting.output[0] : accelData}
+  }
+  return reDic
+}

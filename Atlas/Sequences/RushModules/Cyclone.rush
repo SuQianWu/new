@@ -1,0 +1,54 @@
+def CalculateCoilCs(parameter)
+  {
+  str_RawData = parameter.input.customKey onError e -> if True {
+  str_RawData = parameter.input.defaultKey
+  }
+  
+  
+  str_CoilCs = String_SubStringByPreAndPost(str_RawData, "Read Cs data","Pass")
+  arr_data = tokenize(str_CoilCs, "\r\n")
+  
+  res = 0
+  average = 0
+  average_s = 0
+  tmpvalue = 0
+  count_s = 0
+  count = 0
+  if size(arr_data) ==100
+  {
+      for int_value in arr_data
+      {
+  
+  #if isNumber(int_value)
+  #       {
+              tmpvalue = numerify(int_value)
+              average = average + tmpvalue
+  
+              count = count + 1
+              if tmpvalue >= 1.2 && tmpvalue <= 2.2
+              {
+                  average_s = average_s + tmpvalue
+                  count_s =  count_s + 1
+  
+              }
+  
+  
+          }
+  
+  #   }
+  
+      if count_s != 0
+      {
+          res = average_s / count_s
+      }
+      else if count != 0
+      {
+          res = average / count
+      }
+  
+      return _createResponseDict(True,{parameter.output[0] : stringify(res)})
+  }
+  
+  return _createResponseDict(True,{parameter.output[0] : "Fail to calculate coil CS !"})
+  
+  }

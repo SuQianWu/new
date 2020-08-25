@@ -1,0 +1,177 @@
+
+def FX_subtract(parameter) {  
+  _value0 = numerify(parameter.input.value0) onError e -> _value0 = 0
+  _value1 = numerify(parameter.input.value1) onError e -> _value1 = 0
+
+  _result = _value0 - _value1
+  
+  _retDict = {}
+  _retDict.result = True
+  _retDict.output = {}
+
+  _retDict.output = {parameter.output[0] : _result}
+
+  return _retDict     
+}
+
+def FX_add(parameter) {
+  _value0 = numerify(parameter.input.value0) onError e -> _value0 = 0
+  _value1 = numerify(parameter.input.value1) onError e -> _value0 = 0
+
+  _result = _value0 + _value1
+
+  _retDict = {}
+  _retDict.result = True
+  _retDict.output = {}
+
+  _retDict.output = {parameter.output[0] : stringify(_result)}
+
+  return _retDict    
+}
+
+def FX_multiple(parameter) {
+
+  _value0 = numerify(parameter.input.value0) onError e -> _value0 = 0
+  _value1 = numerify(parameter.input.value1) onError e -> _value0 = 0
+
+  _result = _value0 * _value1
+
+  _retDict = {}
+  _retDict.result = True
+  _retDict.output = {}
+
+  _retDict.output = {parameter.output[0] : _result}
+  atlasLogInfo("-------result--------",_result)
+
+  return _retDict  
+}
+
+def FX_divide(parameter) {
+  _value0 = numerify(parameter.input.value0) onError e -> _value0 = 0
+  _value1 = numerify(parameter.input.value1) onError e -> _value1 = 1
+
+  _result = _value0/_value1 //
+
+  _retDict = {}
+  _retDict.result = True
+  _retDict.output = {}
+
+  _retDict.output = {parameter.output[0] : _result}
+
+  return _retDict  
+}
+
+def FX_sum(shareDict,parameter) {
+  commands = parameter.command
+
+  _inputDistKey = parameter.input[0]
+  _outputDistKey = parameter.output[0]
+  _value = getValueFromShareDict(shareDict,_inputDistKey)
+
+  
+  _result = 0
+  for i in _value {
+    _result = _result + numerify(i)
+  }
+  
+  cacheToShareDict(shareDict,_outputDistKey,_result)
+  
+}
+
+def FX_average(parameter) {
+  _value = parameter.input.customKey onError e -> if True {
+    _value = parameter.input.defaultKey
+  }
+
+  _result = 0
+  for i in _value {
+    _result = _result + numerify(i)
+  }
+  
+  _average = _result*1.0/size(_value)
+
+  _retDict = {}
+  _retDict.result = True
+  _retDict.output = {}
+
+  _retDict.output = {parameter.output[0] : _average}
+
+  return _retDict      
+}
+
+
+def Math_Avg(arrNums)
+{
+  sum = 0.0
+  for num in arrNums
+  {
+    sum = sum + num
+  }
+  
+  return sum/size(arrNums)
+}
+
+# # Math_Stdevp(arrNums[, avg])
+def Math_Stdevp(arrNums, optionalArgs...)
+{
+  avg = :NIL:
+  if size(optionalArgs) > 0 && isNumber(optionalArgs[0])
+  {
+    avg = optionalArgs[0]
+  }
+  else
+  {
+    avg = Math_Avg(arrNums)
+  }
+
+  sumOfDiff = 0.0
+  for num in arrNums
+  {
+    sumOfDiff = sumOfDiff + Math.pow(num - avg, 2)
+  }
+
+  return Math.sqrt(sumOfDiff/size(arrNums))
+}
+
+def Math_Min(arrNums)
+{
+  min = arrNums[0]
+  for num in arrNums
+  {
+    if num < min { min = num }
+  }
+
+  return min
+}
+
+def Math_Max(arrNums)
+{
+  max = arrNums[0]
+  for num in arrNums
+  {
+    if num > max { max = num }
+  }
+
+  return max
+}
+
+def Math_Median(arrNums)
+{
+  # arrNums = arrNums.sort
+  for i in range(0, size(arrNums))
+  {
+    for j in range(i + 1, size(arrNums))
+    {
+      if arrNums[i] > arrNums[j]
+      {
+        temp = arrNums[i]
+        arrNums[i] = arrNums[j]
+        arrNums[j] = temp
+      }
+    }
+  }
+
+  len = size(arrNums)
+  median = (arrNums[(len - 1) / 2] + arrNums[len / 2]) / 2.0
+  return median
+}

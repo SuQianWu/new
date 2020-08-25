@@ -1,0 +1,250 @@
+# Function: get ave clear value from ALS data for QT1 and CG-SENSOR's ALS test
+# e.g. 
+# => als:      16s:708630us (+00s:000000us) = Channel0 = 0x00000000, Channel1 = 0x00000000, Channel2 = 0x00000000, Channel3 = 0x00000000
+# =>       ==>  {ALS_Ch3_channel: 0,ALS_Ch0_channel: 0, ALS_Ch1_channel: 0, ALS_Ch2_channel: 0}
+# Return:  Boole Value: True/False
+# Parameter: 
+#         ALS_begin       NSString        the data begin, default is 3
+def avrageALSClearAndIR(dicSetting)
+{
+    atlasLogInfo("parameter:",dicSetting)    
+    iLimitCount = 0
+    iCh3Count = 0
+    iCh0Count   = 0
+    iCh1Count = 0
+    iCh2Count  = 0
+    iCh4Count  = 0
+    iCh5Count  = 0
+    iCh3Sum   = 0
+    fCh0Sum     = 0
+    fCh1Sum   = 0
+    fCh2Sum    = 0
+    fCh4Sum    = 0
+    fCh5Sum    = 0
+
+    iLimitCount = numerify(dicSetting.ALS_begin) onError e -> iLimitCount = 3
+    strValue = dicSetting.input.customKey onError e -> if True {
+        strValue = dicSetting.input.defaultKey
+    }
+    dicMemoryValues = {}
+    arrALS   = Strings.tokenize(strValue,"als:")
+    atlasLogInfo("arrALS is:",arrALS)
+    if(size(arrALS) < iLimitCount)
+    {
+        atlasLogInfo("ALS Data error!")
+        retDict = {
+            "result" : False,
+            "output" : {}
+        }
+        return retDict
+    }    
+    arrDoWithALS        =   arrALS
+    arrSaveALS_begin    =   []
+    if (dicSetting.ALS_begin != Nil and dicSetting.ALS_begin != "")
+    {
+        for i in range(iLimitCount,size(arrALS))
+        {
+            arrSaveALS_begin = arrSaveALS_begin :: arrALS[i]
+        }
+        arrDoWithALS  = arrSaveALS_begin
+    }
+    atlasLogInfo("arrDoWithALS is :",arrDoWithALS)    
+    
+    for strTempOrl in arrDoWithALS
+    {
+        atlasLogInfo("strTempOrl is",strTempOrl)        
+        if not isString(strTempOrl)
+        {
+            atlasLogInfo("strTempOrl isn't string, do nothing!")
+        }        
+        else
+        {
+            atlasLogInfo("strTempOrl is string, do below!")
+            # whether @"clear = " is exist
+            if(Strings.location_of_substring(strTempOrl,"Channel3 = ") != Nil)
+            {
+                strTemp     =   Regex.groups(strTempOrl, "Channel3\\s*=\\s*(0x[0-9a-zA-Z]+),?", 8)[0]
+                atlasLogInfo("strTemp Channel3 is:",strTemp)
+                if(strTemp != Nil){
+                    atlasLogInfo("{{{]}}}}}}}",strTemp)
+                    iValue  = Convert_HexStringToNumber(strTemp)
+                    iCh3Count = iCh3Count + 1
+                    iCh3Sum   = iCh3Sum + iValue
+                }
+                else{
+                   Atlas.Log.error("regex is not found:","Channel3\\s*=\\s*(0x[0-9a-zA-Z]+),?")
+                }
+            }
+            else{
+               Atlas.Log.error("no Channel3 found")
+            }
+            # whether @"red = " is exist
+            if(Strings.location_of_substring(strTempOrl, "Channel0 = ") != Nil)
+            {
+                strTemp     =   Regex.groups(strTempOrl, "Channel0\\s*=\\s*(0x[0-9a-zA-Z]+),?", 8)[0]
+                if(strTemp != Nil){
+                    iValue      = Convert_HexStringToNumber(strTemp)
+                    iCh0Count   = iCh0Count + 1
+                    fCh0Sum     = fCh0Sum + iValue
+                }
+                else{
+                   Atlas.Log.error("regex is not found:","Channel0\\s*=\\s*(0x[0-9a-zA-Z]+),?")
+                }
+            }
+            # whether @"green = " is exist
+            if(Strings.location_of_substring(strTempOrl, "Channel1 = ") != Nil)
+            {
+                strTemp     =   Regex.groups(strTempOrl, "Channel1\\s*=\\s*(0x[0-9a-zA-Z]+),?", 8)[0]
+                if(strTemp != Nil){
+                    iValue  = Convert_HexStringToNumber(strTemp)
+                    iCh1Count  = iCh1Count + 1
+                    fCh1Sum    = fCh1Sum + iValue
+                }
+                else{
+                   Atlas.Log.error("regex is not found:","Channel1\\s*=\\s*(0x[0-9a-zA-Z]+),?")
+                }
+            }
+            # whether @"blue = " is exist
+            if(Strings.location_of_substring(strTempOrl, "Channel2 = ") != Nil)
+            {
+                strTemp     =   Regex.groups(strTempOrl, "Channel2\\s*=\\s*(0x[0-9a-zA-Z]+),?", 8)[0]
+                # strTemp     =   subByRegex(strTempOrl,"Channel2\\s*=\\s*(0x[0-9a-zA-Z]+),?")
+                if(strTemp != Nil){
+                    iValue  = Convert_HexStringToNumber(strTemp)
+                    iCh2Count  = iCh2Count +1
+                    fCh2Sum    = fCh2Sum + iValue
+                }
+                else{
+                   Atlas.Log.error("regex is not found:","Channel2\\s*=\\s*(0x[0-9a-zA-Z]+),?")
+                }
+            }
+            # whether @"Channel4 = " is exist
+            if(Strings.location_of_substring(strTempOrl, "Channel4 = ") != Nil)
+            {
+                strTemp     =   Regex.groups(strTempOrl, "Channel4\\s*=\\s*(0x[0-9a-zA-Z]+),?", 8)[0]
+                # strTemp     =   subByRegex(strTempOrl,"Channel4\\s*=\\s*(0x[0-9a-zA-Z]+),?")
+                if(strTemp != Nil){
+                    iValue  = Convert_HexStringToNumber(strTemp)
+                    iCh4Count  = iCh4Count +1
+                    fCh4Sum    = fCh4Sum + iValue
+                }
+                else{
+                   Atlas.Log.error("regex is not found:","Channel4\\s*=\\s*(0x[0-9a-zA-Z]+),?")
+                }
+            }            
+            # whether @"Channel5 = " is exist
+            if(Strings.location_of_substring(strTempOrl, "Channel5 = ") != Nil)
+            {
+                strTemp     =   Regex.groups(strTempOrl, "Channel5\\s*=\\s*(0x[0-9a-zA-Z]+),?", 8)[0]
+                # strTemp     =   subByRegex(strTempOrl,"Channel5\\s*=\\s*(0x[0-9a-zA-Z]+),?")
+                if(strTemp != Nil){
+                    iValue  = Convert_HexStringToNumber(strTemp)
+                    iCh5Count  = iCh5Count +1
+                    fCh5Sum    = fCh5Sum + iValue
+                }
+                else{
+                   Atlas.Log.error("regex is not found:","Channel5\\s*=\\s*(0x[0-9a-zA-Z]+),?")
+                }
+            }        
+        }
+    }
+    # calculate avg of Clear
+    if (iCh3Count > 0){
+        dicMemoryValues = dicMemoryValues + {dicSetting.output[3] : stringify(iCh3Sum*1.0 / iCh3Count)}
+    }
+    else
+    {
+        atlasLogInfo("data count is 0 !")
+        dicMemoryValues = dicMemoryValues + {dicSetting.output[3] : "NA"}
+    }
+    # calculate avg of Red
+    if (iCh0Count > 0){
+        dicMemoryValues = dicMemoryValues + {dicSetting.output[0] : stringify(fCh0Sum*1.0 / iCh0Count)}
+    }
+    else
+    {
+        atlasLogInfo("data count is 0 !")
+        dicMemoryValues = dicMemoryValues + {dicSetting.output[0] : "NA"}
+    }
+    # calculate avg of Green
+    if (iCh1Count > 0){
+        dicMemoryValues = dicMemoryValues + {dicSetting.output[1] : stringify(fCh1Sum*1.0 / iCh1Count)}        
+    }
+    else
+    {
+        atlasLogInfo("data count is 0 !")
+        dicMemoryValues = dicMemoryValues + {dicSetting.output[1] : "NA"}
+    }
+    # calculate avg of Blue
+    if (iCh2Count > 0){
+        dicMemoryValues = dicMemoryValues + {dicSetting.output[2] : stringify(fCh2Sum*1.0 / iCh2Count)}        
+    }
+    else
+    {
+        atlasLogInfo("data count is 0 !")
+        dicMemoryValues = dicMemoryValues + {dicSetting.output[2] : "NA"}
+    }
+    # calculate avg of Ch4
+    if (iCh4Count > 0){
+        dicMemoryValues = dicMemoryValues + {dicSetting.output[4] : stringify(fCh4Sum*1.0 / iCh4Count)}        
+    }
+    else
+    {
+        atlasLogInfo("data count is 0 !")
+        dicMemoryValues = dicMemoryValues + {dicSetting.output[4] : "NA"}
+    }    
+    # calculate avg of Ch5
+    if (iCh5Count > 0){
+        dicMemoryValues = dicMemoryValues + {dicSetting.output[5] : stringify(fCh5Sum*1.0 / iCh5Count)}        
+    }
+    else
+    {
+        atlasLogInfo("data count is 0 !")
+        dicMemoryValues = dicMemoryValues + {dicSetting.output[5] : "NA"}
+    }    
+    atlasLogInfo("ALS_Ch3_channel key value is: ",dicMemoryValues[dicSetting.output[3]],"ALS_Ch0_channel key value is: ",dicMemoryValues[dicSetting.output[0]],"ALS_Ch2_channel key value is: ",dicMemoryValues[dicSetting.output[2]],"ALS_Ch1_channel key value is: ",dicMemoryValues[dicSetting.output[1]],"ALS_Ch4_channel key value is: ",dicMemoryValues[dicSetting.output[4]],"ALS_Ch5_channel key value is: ",dicMemoryValues[dicSetting.output[5]])       
+    retDict = {
+        "result" : True,
+        "output" : dicMemoryValues
+    }
+    return retDict
+}
+
+
+def calculateALSSN(dicSetting){
+    atlasLogInfo("parameters :", dicSetting)
+    outPutKey=dicSetting.output[0]
+    retval = 0
+    regE3 = numerify(dicSetting.input.regE3Key)
+    regE4 = numerify(dicSetting.input.regE4Key)
+    regE5 = numerify(dicSetting.input.regE5Key)
+    regE6 = numerify(dicSetting.input.regE6Key)
+    
+    regE3Prime = Bitops.bitAnd(regE3, 0xFF)
+    atlasLogInfo("((regE3 & 0xFF)) = " + stringify(regE3Prime))
+    
+    regE4Prime = Bitops.bitAsl(Bitops.bitAnd(regE4, 0xFF),8)
+    atlasLogInfo("((regE4 & 0xFF)<<8) = " + stringify(regE4Prime))
+    
+
+    regE5Prime = Bitops.bitAsl(Bitops.bitAnd(regE5, 0xFF),16)
+    atlasLogInfo("(regE5 & 0xFF)<<16 = " + stringify(regE5Prime))
+    
+    regE6Prime = Bitops.bitAsl(Bitops.bitAnd(regE6, 0xFF),24)
+    atlasLogInfo("(regE6 & 0xFF)<<24 = " + stringify(regE6Prime))
+
+    retval = Bitops.bitOr(Bitops.bitOr(Bitops.bitOr(regE3Prime,regE4Prime), regE5Prime), regE6Prime)
+
+    hexRetval = hexStringify(retval,size(stringify(retval)))
+    if(size(hexRetval)<8){
+        hexRetval = "0"*(8-size(hexRetval))+hexRetval
+    }elsif(size(hexRetval)>8){
+        hexRetval = hexRetval[-8:]
+    }
+    atlasLogInfo("ReturnValue = ",hexRetval)
+    retDict = {
+      "result": True,
+      "output": { outPutKey : hexRetval }
+    }
+    return retDict
+}

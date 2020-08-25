@@ -1,0 +1,167 @@
+# Function: Calculate compass NMS for QT2 offline
+# Return:  Boole Value: True/False
+# Parameter: 
+#   dicSetting:    Dictionary
+#       Key1        String        postfix name
+#       Key2        String        postfix name
+#       Key3        String        postfix name
+def calCompassNMS(dicSetting)
+{
+    atlasLogInfo("parameter:",dicSetting)
+    outPutKey=dicSetting.output[0]
+    retDict = {
+      "result": True,
+      "output": { outPutKey : "" }
+    }
+
+    dAverageX = numerify(dicSetting.input.Key1)
+    dAverageY = numerify(dicSetting.input.Key2)
+    dAverageZ = numerify(dicSetting.input.Key3)
+    dCompassNMS = Math.sqrt(Math.pow(dAverageX, 2)+Math.pow(dAverageY, 2)+Math.pow(dAverageZ, 2))
+    retDict.output[outPutKey] = stringify(dCompassNMS)
+    atlasLogInfo(">>>>calCompassNMS<<<<  calculate result is :",retDict.output[outPutKey])
+    return retDict
+}
+def getVACompassRevid(dicSetting)
+{
+    version = stringify(dicSetting.version) onError e -> if True{
+        Atlas.Log.error("can not get the version",e)
+    }
+    atlasLogInfo("**********",version)
+    ver = stringify(dicSetting.ver) onError e -> if True{
+        Atlas.Log.error("can not get the version",e)
+    }
+    atlasLogInfo("**********",ver)
+    strResult = ""
+    bRet = True
+    if (ver == "0x08"){
+        strResult = "Hybrid"
+    }elsif (ver == "0x28"){
+        strResult = "Alternate"
+    }elsif(version == "0x49_0x17"){
+        strResult = "Magnesium"
+    }else{
+        bRet = False
+    }
+    retDict = {
+        "result" : bRet,
+        "output" : {
+            dicSetting.output[0] : strResult
+        }
+    }
+      return retDict  
+}
+
+def compassSamplesCalculate(dicContents)
+{
+
+    atlasLogInfo("dicContents",dicContents)   
+    iStart  = dicContents.iStart onError e -> iStart = 4
+    strValue = dicContents.input.customKey onError e -> if True{
+        Atlas.Log.error("can not get input value!")
+    }
+    strResult           =   ""
+    arrRawData          =   []
+    arrCompassDataX     =   []
+    arrCompassDataY     =   []
+    arrCompassDataZ     =   []
+    dAverageX           =   0
+    dAverageY           =   0
+    dAverageZ           =   0
+    dCompassStd_X       =   0
+    dCompassStd_Y       =   0
+    dCompassStd_Z       =   0
+    dCompassData_X      =   0
+    dCompassData_Y      =   0
+    dCompassData_Z      =   0
+    atlasLogInfo("iStart is:",iStart)
+
+    if(size(strValue) >= 10)
+    {
+        strValue    =   Strings.splice(strValue," ","")
+        arrRawData                  =   Strings.tokenize(strValue,"\n")
+        iCount                      =   size(arrRawData)
+        arrRawDataItem              =   arrRawData
+        if(size(arrRawData) >= iCount)
+        {
+            for i in range(iStart,iCount)
+            {
+                if(Regex.groups(arrRawData[i], "=(.*?)$", 8)[0] != Nil){
+                    arrRawDataItem[i]     =     Strings.tokenize(Regex.groups(arrRawData[i], "=(.*?)$", 8)[0],",")
+                }
+                # if(subByRegex(arrRawData[i],"=(.*?)$") != Nil){
+                #     arrRawDataItem[i]     =     Strings.tokenize(subByRegex(arrRawData[i],"=(.*?)$"),",")
+                # }
+                else{
+                    strResult = "Get Comapss Raw Data Fail, can't catch =(.*?)$ data for calculation."
+                     retDict  = {
+                        "result" : False,
+                        "output" : strResult
+                     }
+                    return retDict
+                }
+                # arrRawDataItem   =   subByRegex(arrRawData[i],"=(.*?),")
+                if (size(arrRawDataItem[i]) >= 4)
+                {
+                    dCompassData_X  =   numerify(arrRawDataItem[i][0])
+                    dCompassData_Y  =   numerify(arrRawDataItem[i][1])
+                    dCompassData_Z  =   numerify(arrRawDataItem[i][2])
+                    dAverageX       =   dAverageX + dCompassData_X
+                    dAverageY       =   dAverageY + dCompassData_Y
+                    dAverageZ       =   dAverageZ + dCompassData_Z
+                    arrCompassDataX =   arrCompassDataX :: dCompassData_X
+                    arrCompassDataY =   arrCompassDataY :: dCompassData_Y
+                    arrCompassDataZ =   arrCompassDataZ :: dCompassData_Z
+                }
+                else
+                {
+                    strResult = "Get Comapss Raw Data Fail"
+                    retDict  = {
+                        "result" : False,
+                        "output" : strResult
+                     }
+                    return retDict 
+                }
+            }
+            #caculate the average
+            dAverageX  = dAverageX / (iCount - iStart)
+            dAverageY  = dAverageY / (iCount - iStart)
+            dAverageZ  = dAverageZ / (iCount - iStart)
+            # atlasLogInfo("dAverageXYZ2 is:",dAverageX,dAverageY,dAverageZ,"iCount - istart ===", iCount - iStart)
+            dCompassStd_X = calSTD(arrCompassDataX) *1.0
+            dCompassStd_Y = calSTD(arrCompassDataY) *1.0
+            dCompassStd_Z = calSTD(arrCompassDataZ) *1.0
+
+            retDict = {
+                "result" : True,
+                "output" : {
+                    dicContents.output[0] : stringify(dAverageX),
+                    dicContents.output[1] : stringify(dAverageY),
+                    dicContents.output[2] : stringify(dAverageZ),
+                    dicContents.output[3] : stringify(dCompassStd_X),
+                    dicContents.output[4] : stringify(dCompassStd_Y),
+                    dicContents.output[5] : stringify(dCompassStd_Z),
+                }
+            }
+            return retDict
+        }
+        else
+        {
+            strResult = "Compass init failed!"
+            retDict  = {
+                "result" : False,
+                "output" : strResult
+                }
+            return retDict 
+        }
+    }
+    else
+    {
+        strResult = "worng return value"
+        retDict  = {
+            "result" : False,
+            "output" : strResult
+            }
+        return retDict 
+    }
+}

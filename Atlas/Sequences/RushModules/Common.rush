@@ -1,0 +1,1980 @@
+
+def _createResponseDict (bResult,outputDict) {
+	_retDict = {}
+
+	_retDict.result = bResult
+	_retDict.output = outputDict
+
+	return _retDict
+}
+
+def createRecord(parameter) {
+  if True {
+    _testName = parameter.name
+  } onError e -> _testName = parameter.testName
+
+  _value = parameter.input.customKey onError e -> if True {
+    _value = parameter.input.defaultKey
+  }
+  if _value == Nil{
+    _value = ""
+  }
+
+  _limit =
+  {
+    #"lowerLimit": numMin,
+    "name": _testName,
+    "units": "string",
+    #"upperLimit": numMax,
+    #"relaxedUpperLimit": numRelaxedMax,
+    #"relaxedLowerLimit": numRelaxedMin
+  }
+
+  if has_key(Globals.system.limits["Limits"],_testName)==True {
+    _limit = Globals.system.limits["Limits"][_testName]
+
+    if has_key(_limit,"units")==False {
+      _limit = _limit + {"units": "na"}
+    }
+  }
+  else{
+    UI_ShowMessage("Itme "+_testName+" doesn't have limit in limit file, please check!")
+  }
+
+  if has_key(parameter,"limit") {
+    numlowLimit = numerify(parameter.limit.lowerLimit) onError e-> numlowLimit = Nil
+    numupperLimit = numerify(parameter.limit.upperLimit) onError e-> numupperLimit = Nil
+    parameter.limit = {"lowerLimit": numlowLimit, "upperLimit": numupperLimit}
+    atlasLogInfo('Limit', parameter.limit)
+    _limit = _limit + parameter.limit
+    atlasLogInfo("get send limit>>>>>>>>>>>", _limit)
+  }
+
+  _recordInfo = {}
+  _recordInfo.lowerLimit = _limit.lowerLimit onError e-> if True{
+    _recordInfo.lowerLimit = _limit.pattern onError e-> _recordInfo.lowerLimit="NA"
+  }
+  if _recordInfo.lowerLimit == "*" or _recordInfo.lowerLimit ==":NIL:" or _recordInfo.lowerLimit == Nil{
+      _recordInfo.lowerLimit="NA"
+  }
+
+  _recordInfo.upperLimit = _limit.upperLimit onError e-> if True{
+    _recordInfo.upperLimit = _limit.pattern onError e-> _recordInfo.upperLimit="NA"
+  }
+  if _recordInfo.upperLimit == "*" or _recordInfo.upperLimit ==":NIL:" or _recordInfo.upperLimit == Nil{
+    _recordInfo.upperLimit="NA"
+  }
+
+  if (Globals.system.bSubItemResult == False)
+  {
+    _recordInfo = _recordInfo+{"result": False,"value": _value,"units": "NA"}
+    Atlas.create_record([_testName], False, "Pre SubItems Test Failure，value="+stringify(_value))
+    atlasLogInfo("Pre subitems not pass, just create failure record!")
+  }
+  # for FX limit have a type called length
+  else if _limit.units == "length" 
+  {    
+      _length = stringify(_limit.pattern) onError e -> if True {
+        _length = _limit.pattern
+      }
+      isMatch = FX_Regex_IsMatch(stringify(size(_value)), _length)
+
+      _message = "pass"
+      if isMatch==False {
+        _message = "length incorrect, [" + _length + "], " + stringify(size(_value))
+      }
+      else {
+        # _value = _pattern
+      }  
+      _recordInfo = _recordInfo+{"result": isMatch,"value": stringify(_value),"units": "NA"}
+
+      Atlas.create_record([_testName,_recordName,stringify(_value)], isMatch, _message)
+
+      _recordInfo = _recordInfo+{"result": isMatch,"value": _value,"units": "NA"}
+
+      #_record.Measurement = {}
+      #_record.Measurement.Value = _value    
+
+      # _value = size(stringify(_value))
+
+      # Atlas.create_record([parameter.testName,_testName], numerify(_value), _limit.units, _limit)            
+   }
+  else if _limit.units == "match" {
+    _value = stringify(_value)
+    #transfer all '*' to '.*'
+    # UI_ShowMessage(stringify(_limit.pattern))
+    # _pattern = String_Replace(_limit.pattern,".*","*")
+    _pattern = String_Replace(_limit.pattern,"\\*",".*")
+
+    # UI_ShowMessage(_value)
+    # UI_ShowMessage(_pattern)
+    # isMatch = Regex_IsMatch(_value, _pattern)
+    _message = "match pass"
+    isMatch = True
+    _matches = Regex.matches(_value, _pattern,16)
+    if size(_matches) > 0 {
+      _value = _matches[0]
+    }
+    else {
+      isMatch = False
+      _message = "match fail, [" + _pattern + "], " + stringify(_value)
+    }
+    _recordInfo = _recordInfo+{"result": isMatch,"value": _value,"units": "NA"}
+    if(not Globals.system.bSubItemResult){
+      Atlas.create_record([_testName], False, _message)
+    }
+    else{
+      Atlas.create_record([_testName], isMatch, _message)
+    }
+  }
+  else if _limit.units == "match_fail" {
+
+    #transfer all '*' to '.*'
+    # _pattern = String_Replace(_limit.pattern,".*","*")
+    _pattern = String_Replace(_limit.pattern,"\\*",".*")
+
+    isMatch = Regex_IsMatch(_value, _pattern)
+
+    isMatch = not isMatch
+
+    _message = "match_fail pass"
+    if isMatch==False {
+      _message = "match_fail fail, [" + _pattern + "], " + stringify(_value)
+    }
+    else {
+      _value = _pattern
+    }
+    _recordInfo = _recordInfo+{"result": isMatch,"value": _value,"units": "NA"}
+    if(not Globals.system.bSubItemResult){
+      Atlas.create_record([_testName], False, _message)
+    }
+    else{
+      Atlas.create_record([_testName], isMatch, _message)
+    }
+  }
+  else {
+
+    # if has_key(parameter,"pattern") {
+    #   _matches = flatten(Regex_MatchesOfSubpattern(_value,parameter.pattern))
+    #   _value = _matches[0]
+    # }
+    result={}
+    if _value == Nil
+    {
+      _value = "na"
+      result=Atlas.create_record([_testName], _value, _limit.units, _limit)
+    }
+    if isString(_value)==True {
+      _value = String_TrimSpace(_value)
+    }
+
+    # UI_ShowMessage(Globals.system.memory)
+    # UI_ShowMessage(parameter.input)
+    result = Atlas.create_record([_testName], numerify(_value), _limit.units, _limit) onError e-> if True{
+      result = {"Status": -1}
+      Atlas.create_record([_testName], False, "Create reord with value and limits failure, value="+stringify(_value))
+    }
+
+    atlasLogInfo('Create reocrd>>>>>', result, _limit)
+    if _limit.units == "na"{
+       _recordInfo = _recordInfo+{"result": result.Status==2, "value": numerify(_value), "units": "NA"} onError e-> if True{
+        _recordInfo = _recordInfo+{"result": result.Status==2, "value": _value, "units": "NA"}
+       }
+    }
+    else{
+      _recordInfo = _recordInfo+{"result": result.Status==2, "value": numerify(_value), "units": _limit.units} onError e-> if True{
+        _recordInfo = _recordInfo+{"result": result.Status==2, "value": _value, "units": _limit.units}
+       }
+    }
+
+
+  }
+
+  _retDict = {}
+  _retDict.output = {"record": _recordInfo}
+  _retDict.result = _recordInfo.result
+  return _retDict
+}
+
+
+
+def sleep(parameter) {
+  System.sleep(parameter.duration)
+  _retDict = {}
+  _retDict.output = {}
+  _retDict.result = True
+  writeUartLog("Delay Operate, "+stringify(parameter.duration)+"s",Nil,"NOW")
+
+  return _retDict
+}
+
+def changePreSubItemResult(parameter) {
+  Globals.system.bSubItemResult = parameter.result onError e-> Globals.system.bSubItemResult = True
+  atlasLogInfo("Pre sub item result has changed to ",Globals.system.bSubItemResult)
+  if Globals.system.bSubItemResult{
+    Globals.system.failSubItems = []
+  }
+  return _createResponseDict(True,{})
+}
+
+def cFormatString(parameter) {
+  _formatString = parameter.formatString
+  _args = parameter.args
+
+  _args = [_formatString] + _args
+  _resultString = apply(cformat,_args) onError e -> if True {
+    atlasLogInfo("cFormatString function crash, set output as NIL")
+    return _createResponseDict(False,{parameter.output[0] : ""})
+  }
+
+  return _createResponseDict(True,{parameter.output[0] : _resultString})
+}
+
+
+def changeValueToPassOrFail(parameter){
+  if Globals.system.bSubItemResult{
+    return _createResponseDict(True,{parameter.output[0]:"PASS"})
+  }else{
+    return _createResponseDict(True,{parameter.output[0]:"FAIL"})
+  }
+}
+def setMaterialInfo(parameter) {
+  _key = parameter.materialKey
+  _value = parameter.materialValue
+
+  Globals.system.materialInfo = Globals.system.materialInfo + {_key : _value}
+
+  return _createResponseDict(True,{})
+}
+def _getLimitByCondition_step1(desiredTechName,desiredTestName) {
+  _ret_limit = Nil
+
+  for _materialKey,_materialValue in Globals.system.materialInfo {
+    _ret_limit = _getLimitByCondition_step2(desiredTechName,desiredTestName,_materialKey,_materialValue)
+
+    if isNil(_ret_limit)==False {
+      break
+    }
+  }
+
+  return _ret_limit
+}
+
+def _getLimitByCondition_step2(desiredTechName,desiredTestName,desiredMaterialKey,desiredMaterialValue) {
+  _ret_limit = Nil
+  resourcePath = System.getenv('HOME') + "/Library/Atlas/Resources"
+   # _limits_file_path = cformat("%s/%s/%s%s", resourcePath,"SequenceBase",desiredTechName,"_limits.csv")
+  basePath  =  resourcePath + "/SequenceBase"
+  _limits_file_path =  basePath + "/Limits/"+ StationInfo.station_type() + "_Limits.csv"
+  # # _limits_file_path = "/Users/dic/Library/Atlas/Resources/SequenceBase/Limits/QT0_Limits.csv"
+  _lines = BasicCSV.load(_limits_file_path)
+
+  _header_row = _lines[0]
+  _content_rows = _lines[1:]
+
+  for _row in _content_rows {
+
+    _newLimit = {
+      # "group" : Nil
+      # "name" : Nil
+      # "units" : Nil
+      # "upperLimit" : Nil
+      # "lowerLimit" : Nil
+      # "relaxedUpperLimit" : Nil
+      # "relaxedLowerLimit" : Nil
+      # "pattern" : Nil
+      # "materialKey" : Nil
+      # "materialValue" : Nil
+      # "command" : Nil
+    }
+
+    for i in range(_header_row) {
+      if isNil(_row[i])==False {
+        _newLimit[_header_row[i]] = _row[i]
+      }
+    }
+
+    if _newLimit.name==desiredTestName and
+      _newLimit.materialKey==desiredMaterialKey and
+      FX_Regex_IsMatch(_newLimit.materialValue,desiredMaterialValue)==True {
+
+      _ret_limit = _newLimit
+
+      break
+    } onError e -> if True {
+      continue
+    }
+
+  }
+
+  return _ret_limit
+}
+
+def createRecordByCondition(parameter) {
+  _retDict = {}
+  _recordInfo = {}
+
+  if True {
+    _testName = parameter.name
+  } onError e -> _testName = parameter.testName
+
+  _value = parameter.input.customKey onError e -> if True {
+    _value = parameter.input.defaultKey
+  }
+
+
+  _limit = _getLimitByCondition_step1(parameter.techName,parameter.testName)
+  if isNil(_limit){
+    _recordInfo.upperLimit="NA"
+    _recordInfo.lowerLimit="NA"
+    _recordInfo = _recordInfo+{"result": False,"value": _value,"units": "NA"}
+    _message = "The memoried Material value may be Nil or not exist in the limit file, please check!"
+    Atlas.create_record([_testName], False, _message)
+    _retDict.output = {"record": _recordInfo}
+    _retDict.result = False
+    return _retDict
+  }
+  # UI_ShowMessage(_limit)
+
+  if has_key(parameter,"limit") {
+    _limit = parameter.limit
+  }
+  if has_key(_limit,"units")==False {
+      _limit = _limit + {"units": "na"}
+  }
+
+  _recordInfo.lowerLimit = _limit.lowerLimit onError e-> if True{
+  _recordInfo.lowerLimit = _limit.pattern onError e-> _recordInfo.lowerLimit="NA"
+    if _recordInfo.lowerLimit == "*" or _recordInfo.lowerLimit ==":NIL:"{
+      _recordInfo.lowerLimit="NA"
+    }
+  }
+
+  _recordInfo.upperLimit = _limit.upperLimit onError e-> if True{
+  _recordInfo.upperLimit = _limit.pattern onError e-> _recordInfo.upperLimit="NA"
+    if _recordInfo.upperLimit == "*" or _recordInfo.upperLimit ==":NIL:"{
+      _recordInfo.upperLimit="NA"
+    }
+  }
+
+  if _limit.units == "string" {
+
+    atlasLogInfo("limit.units is string!")
+
+    _recordInfo = _recordInfo+{"result": True,"value": _value,"units": "NA"}
+    if(not Globals.system.bSubItemResult){
+      Atlas.create_record([_testName], False)
+    }
+    else{
+      Atlas.create_record([_testName], True)
+    }
+  }
+  else if _limit.units == "match" {
+
+    #transfer all '*' to '.*'
+    # UI_ShowMessage(stringify(_limit.pattern))
+    # _pattern = String_Replace(_limit.pattern,".*","*")
+    _pattern = String_Replace(_limit.pattern,"\\*",".*")
+
+    # UI_ShowMessage(_value)
+    # UI_ShowMessage(_pattern)
+    isMatch = Regex_IsMatch(_value, _pattern)
+
+    _message = "match pass"
+    if isMatch==False {
+      _message = "match fail, [" + _pattern + "], " + stringify(_value)
+    }
+    _recordInfo = _recordInfo+{"result": isMatch,"value": _value,"units": "NA"}
+    if(not Globals.system.bSubItemResult){
+      Atlas.create_record([_testName], False, _message)
+    }
+    else{
+      Atlas.create_record([_testName], isMatch, _message)
+    }
+  }
+  else if _limit.units == "match_fail" {
+
+    #transfer all '*' to '.*'
+    # _pattern = String_Replace(_limit.pattern,".*","*")
+    _pattern = String_Replace(_limit.pattern,"\\*",".*")
+
+    isMatch = Regex_IsMatch(_value, _pattern)
+
+    isMatch = not isMatch
+
+    _message = "match_fail pass"
+    if isMatch==False {
+      _message = "match_fail fail, [" + _pattern + "], " + stringify(_value)
+    }
+    else {
+      _value = _pattern
+    }
+    _recordInfo = _recordInfo+{"result": isMatch,"value": _value,"units": "NA"}
+    if(not Globals.system.bSubItemResult){
+      Atlas.create_record([_testName], False, _message)
+    }
+    else{
+      Atlas.create_record([_testName], isMatch, _message)
+    }
+  }
+  else {
+
+    # if has_key(parameter,"pattern") {
+    #   _matches = flatten(Regex_MatchesOfSubpattern(_value,parameter.pattern))
+    #   _value = _matches[0]
+    # }
+    if isString(_value)==True {
+      _value = String_TrimSpace(_value)
+    }
+
+    # UI_ShowMessage(Globals.system.memory)
+    # UI_ShowMessage(parameter.input)
+    # UI_ShowMessage(_value)
+    if(not Globals.system.bSubItemResult){
+      result = Atlas.create_record([_testName], False)
+    }
+    else{
+      result = Atlas.create_record([_testName], numerify(_value), _limit.units, _limit)
+    }
+    if _limit.units == "na"{
+       _recordInfo = _recordInfo+{"result": result.Status==2, "value": numerify(_value), "units": "NA"}
+    }
+    else{
+      _recordInfo = _recordInfo+{"result": result.Status==2, "value": numerify(_value), "units": _limit.units}
+    }
+  }
+
+  _retDict.output = {"record": _recordInfo}
+  _retDict.result = _recordInfo.result
+  return _retDict
+}
+
+def numberSystemConvertion(dicSetting)
+{
+    atlasLogInfo("parameter:",dicSetting)
+
+
+    strSource = dicSetting.input.key    onError e ->if True {
+    strSource = dicSetting.input.defaultKey
+  }
+    strSource = Strings.splice(strSource, "\n", "")
+    strSource = Strings.splice(strSource, "\r", "")
+
+    #Get the properties
+    strResult = ""
+    iSourceSystem = dicSetting.change   onError e ->iSourceSystem=16
+    iTargetSystem = dicSetting.to       onError e ->iTargetSystem=10
+    iOffset       = dicSetting.offset   onError e ->iOffset=0
+    iBegin        = dicSetting.from     onError e ->iBegin=0
+    iLength       = dicSetting.length   onError e ->iLength=size(strSource)-iBegin
+
+
+
+    outputKey      = dicSetting.output[0]
+    retDict = {
+        "result" : True,
+        "output" : {outputKey : ""}
+    }
+
+    if(iSourceSystem < 2 || iSourceSystem > 34 || iTargetSystem < 2 || iTargetSystem > 34)
+    {
+        Atlas.Log.error("Invalid number system, souce is", iSourceSystem, "target is", iTargetSystem)
+        retDict.result = False
+        return retDict
+    }
+
+    if(iBegin < size(strSource))
+    {
+        if(iBegin+iLength > size(strSource)){
+        Atlas.Log.error(iBegin, "+", iLength, ", it's beyond the length", size(strSource))
+        retDict.result = False
+        return retDict
+        }
+    }
+    else{
+        Atlas.Log.error("Begin index", iBegin, "is beyond the length", size(strSource))
+        retDict.result = False
+        return retDict
+    }
+
+    #Capture the value
+    strCapture = strSource[iBegin : iBegin+iLength]
+    atlasLogInfo("Capture Value is", strCapture)
+
+    #Convert to dec
+    iDecValue = 0
+    for index in range(0,size(strCapture))
+    {
+        strSingle = strCapture[size(strCapture)-1-index]
+        # atlasLogInfo("strSingle",strSingle)
+        numDigit  = strToInt(strSingle)
+        # atlasLogInfo("numDigit",numDigit)
+        # atlasLogInfo("iSourceSystem",iSourceSystem)
+        if(numDigit < 0 || numDigit >= iSourceSystem){
+             Atlas.Log.error("Calulate error for degit value")
+             retDict.result = False
+             return retDict
+        }
+        iDecValue = iDecValue + numDigit*Math.pow(iSourceSystem, index)
+        # atlasLogInfo("iDecValue1",iDecValue)
+    }
+
+    iDecValue = iDecValue + iOffset
+    #Convert to target system
+    # strResult = ""
+    while(iDecValue >= iTargetSystem){
+        strDecValue = stringify(iDecValue)
+        if(Strings.range_of_substring(strDecValue,".") != Nil){
+            aryData = Strings.tokenize(strDecValue, ".")
+            iDecValue = numerify(aryData[0])
+        }
+
+        iRemainder   = iDecValue%iTargetSystem
+        if iRemainder < 0 {
+            iRemainder = iTargetSystem + iRemainder
+        }
+        strRemainder = intToStr(iRemainder)
+        strResult    = strRemainder+strResult
+        iDecValue    = Math.floor(iDecValue/iTargetSystem)
+    }
+    strResult = intToStr(iDecValue)+strResult
+    iPlace        = dicSetting.place    onError e ->iPlace=size(strResult)
+
+    if(iPlace > size(strResult)){
+        for index in range(0,iPlace-size(strResult)){
+            strResult = "0" + strResult
+        }
+
+    }
+    elsif(iPlace < size(strResult)){
+        strResult = strResult[size(strResult)-iPlace:]
+    }
+
+    retDict.output[outputKey] = strResult
+    atlasLogInfo("Value After Convert &&&&&&&&&&&&&",retDict)
+    # atlasLogInfo("The convertion result of", strSource, "from", iSourceSystem, "to", iTargetSystem, "is", Globals.g_strReturnValue)
+    return retDict
+
+}
+
+def addAttribute(parameter) {
+  isMatch = True
+  _name = parameter.testName
+
+  if has_key(parameter,"name")==True {
+    _name = parameter.name
+  }
+
+  _value = parameter.input.customKey onError e -> if True {
+    _value = parameter.input.defaultKey
+  }
+
+  if _value == :NIL:
+  {
+    atlasLogInfo("the attribute value is Nil, return!")
+    return _createResponseDict(False, {parameter.output[0] : "NULL"})
+  }
+  elsif isString(_value){
+    if Strings.toupper(_value) == "NIL" or _value == ""{
+      atlasLogInfo("the attribute value is empty or nil string")
+      return _createResponseDict(False, {parameter.output[0] : _value})
+    }
+    elsif size(_value)>256{
+      atlasLogInfo("the attribute value length larger than 256")
+      return _createResponseDict(False, {parameter.output[0] : _value})
+    }
+    elsif not Strings.isprint(_value){
+      atlasLogInfo("the attribute value contains not printable character")
+      return _createResponseDict(False, {parameter.output[0] : _value})
+    }
+    else{
+      _value = Strings.splice(_value,"STAR","N84")
+    }
+  }
+  else{
+    atlasLogInfo("the attribute value type wrong!")
+    return _createResponseDict(False, {parameter.output[0] : _value})
+  }
+
+  # UI_ShowMessage(_value)
+  if has_key(parameter,"pattern")==True {
+    # isMatch = Regex_IsMatch(_value, parameter.pattern)
+    _matches = flatten(Regex_MatchesOfSubpattern(_value,parameter.pattern)) onError e -> isMatch=False
+    # UI_ShowMessage(stringify(_matches))
+    if isMatch {
+      _value = _matches[0]
+    }
+
+    _name = "Read_" + _name
+    # CreateRecord([_name],isMatch)
+    Atlas.create_record([_name],isMatch)
+    _atlas_createRecords(parameter,commands,isCOF)
+
+  }
+
+  if isMatch==True {
+    # AddAttribute(_name,_value)
+    Atlas.add_device_attribute(_name, _value);
+  }
+
+  return  _createResponseDict(isMatch,{parameter.output[0] : _value})
+}
+
+def regexProcess(parameter) {
+
+  _string = parameter.input.customKey onError e -> if True {
+    _string = parameter.input.defaultKey
+  }
+
+  _option = parameter.option onError e -> if True {
+    _option = 8
+  }
+
+  _retDict = {}
+  _retDict.result = True
+  _retDict.output = {}
+
+  _groups = Regex.groups(_string, parameter.pattern, _option)
+  atlasLogInfo("_groups is:",_groups)
+
+  _result = []
+
+  for _group in _groups {
+
+    _group = Regex.replace(_group, "^\\s+", "", 16)
+    _group = Regex.replace(_group, "\\s+$", "", 16)
+    _group = Regex.replace(_group, "^\\r+", "", 16)
+    _group = Regex.replace(_group, "\\r+$", "", 16)
+    _group = Regex.replace(_group, "^\\n+", "", 16)
+    _group = Regex.replace(_group, "\\n+$", "", 16)
+
+    _result = _result :: _group
+  }
+
+  if size(_result)==0 {
+    _retDict.result = False
+    _result = Nil
+    atlasLogInfo("catch value is Nil:",_result)
+  }
+  else if size(_result)==1 {
+    _result = _result[0]
+    atlasLogInfo("catch one value:",_result)
+  }
+  else{
+    atlasLogInfo("catch two more values:",_result)
+    _result = _result[0]
+    atlasLogInfo("catch first one value:",_result)
+  }
+  _retDict.output = {parameter.output[0] : _result}
+
+  # Atlas.create_record(["regexProcess",parameter.pattern],_retDict.result)
+  return _retDict
+}
+
+def convertHexToDec(parameter) {
+
+  _stringToConvert = parameter.input.customKey onError e -> if True {
+    _stringToConvert = parameter.input.defaultKey
+  }
+
+  _hex_value = stringify(_stringToConvert)
+
+  _hex_value = Strings.toupper(_hex_value)
+
+  if _hex_value[0:2]<>"0X" {
+    _hex_value = "0x" + _hex_value
+  }
+
+  _retDict = {}
+  _retDict.output = {}
+  _retDict.result = True
+  _dec_value = numerify(_hex_value) onError e-> _retDict.result = False
+  _retDict.output = {parameter.output[0] : _dec_value}
+
+  return _retDict
+}
+
+def subtract(parameter) {
+  _value0 = numerify(parameter.input.value0) onError e -> _value0 = 0
+  _value1 = numerify(parameter.input.value1) onError e -> _value1 = 0
+
+  _result = _value0 - _value1
+
+  _retDict = {}
+  _retDict.output = {}
+
+  _retDict.output = {parameter.output[0] : stringify(_result)}
+  _retDict.result = True
+
+  return _retDict
+}
+
+def multiple(parameter) {
+
+  _value0 = numerify(parameter.input.value0) onError e -> _value0 = 0
+  _value1 = numerify(parameter.input.value1) onError e -> _value1 = 0
+
+  _result = _value0 * _value1
+
+  _retDict = {}
+  _retDict.output = {}
+  _retDict.result = True
+
+  _retDict.output = {parameter.output[0] : stringify(_result)}
+  atlasLogInfo("-------result--------",_result)
+
+  return _retDict
+}
+
+def Convert_HexStringToNumber(string)
+{
+ return Atlas.call_plugin("ConvertPlugin", "hexStringToNumber", {"string": string})
+ # return numerify(string)
+}
+
+def Convert_NumberToHexString(number)
+{
+   return Atlas.call_plugin("ConvertPlugin", "numberToHexString", {"number": number})
+
+}
+def convertNumberToBin(number)
+{
+  return Atlas.call_plugin("ConvertPlugin", "numberToBinString", {"number": number})
+}
+
+def divide(parameter) {
+  _value0 = numerify(parameter.input.value0) onError e -> _value0 = 0
+  _value1 = numerify(parameter.input.value1) onError e -> _value1 = 1
+
+  _result = _value0/_value1
+
+  _retDict = {}
+  _retDict.output = {}
+  _retDict.result = True
+
+  _retDict.output = {parameter.output[0] : stringify(_result)}
+
+  return _retDict
+}
+
+
+def combineFixtureIDAndSlotID(parameter){
+
+  _fixtureId = parameter.fixtureId onError e -> if True {
+    _fixtureId = ""
+  }
+  _slotId = parameter.slotId onError e -> if True {
+    _fixtureId = ""
+  }
+  _outputArr = parameter.output onError e -> if True {
+    _outputArr = []
+  }
+  _string = "FixtureSN:"+_fixtureId + " / "+ "SlotID:" + _slotId
+
+
+  _retDict = {
+        "result" : True,
+        "output" : {_outputArr[0] : _string}
+       }
+
+  return _retDict
+}
+
+def changeScientificToNormal(dicSetting){
+
+    atlasLogInfo("Final ReturnValue =++++++ ")
+    strResult = ""
+    bRet = True
+    retDict = {
+        "result" : True
+    }
+    atlasLogInfo("parameters :", dicSetting)
+    strInput = dicSetting.input.customKey onError e-> Atlas.Log.error("-99999issue")
+    atlasLogInfo("-----------------------------The input  value is:",dicSetting.input.customKey)
+    aryContent = Strings.tokenize(strInput, "e")
+    iResult = numerify(aryContent[0])*Math.pow(10,numerify(aryContent[1]))
+
+    iLength = numerify(dicSetting.LENGTH)
+    dicArryCount = {"KEY" : aryContent[0], "LENGTH" : aryContent[1]}
+    if(stringify(aryContent[1][0:1])  == "-"){
+        strResult = Atlas.call_plugin("Logging","ChangeScientificToNormal",dicArryCount)
+        atlasLogInfo(formatString("+","CHANGE_SCIENTIFIC_TO_NORMAL", stringify(True)),strResult)
+    }else{
+        iResult = numerify(aryContent[0])*Math.pow(10,numerify(aryContent[1]))
+        iLength = numerify(dicSetting["LENGTH"])
+        #atlasLogInfo("==========================================ReturnValue2 = "+ stringify(iResult))
+        aryContent = Strings.tokenize(stringify(iResult), ".")                                   #12.383200
+        #atlasLogInfo("==========================================ReturnValue3 =", aryContent[0])#12
+        #atlasLogInfo("==========================================ReturnValue3 = ",aryContent[1]) #383200
+        aLength = size(aryContent[1])
+
+        if(aLength < iLength ){
+            strDecimal = "."+ stringify(aryContent[1][0: aLength])
+        }else{
+            strDecimal = "."+ stringify(aryContent[1][0: iLength])
+        }
+        strResult = aryContent[0]+strDecimal
+        atlasLogInfo(formatString("+","CHANGE_SCIENTIFIC_TO_NORMAL", stringify(True)))
+
+    }
+    retDict.output = {
+        dicSetting.output[0] : strResult
+    }
+    return retDict
+}
+
+def doValueMaxMinAverage(dicSetting)
+{
+
+    bRet                = True
+    retDict = {
+        "result" : True
+    }
+    atlasLogInfo("--------------------------parameter:",dicSetting)
+    arr1 = []
+    arr = []
+    for key,value in dicSetting.input{
+        arr = arr :: value
+    }
+
+    # for index in range(0, size(arr))
+    # {
+    #     arr1 = arr1 :: Globals.g_dicMemoryValues[arr[index]]
+    # }
+    dicArryCount = {"KEY": arr};
+    returnStr = Atlas.call_plugin("Logging","DoValueMaxMinAverage",dicArryCount)
+    retDict.output = {
+        dicSetting.output[0] : returnStr
+    }
+    atlasLogInfo("---------------arr1 return value is", retDict)
+    return retDict
+
+}
+
+def combineHexData(parameter)
+{
+    atlasLogInfo("parameter:",parameter)
+
+    iBegin = numerify(parameter.beginIndex)  onError e-> iBegin = 0
+    iEnd = numerify(parameter.endIndex)  onError e-> iEnd = 0
+
+    strSeparate = parameter.separateString onError e-> strSeparate = " "
+
+    strCatchValue = parameter.input.customKey onError e-> if True{
+        strCatchValue = parameter.input.defaultKey
+    }
+    remeveString=parameter.removeString onError e-> removeString = ""
+
+    bFlip= parameter.flip onError e-> bFlip = False
+
+    bTransferToDec = parameter.toDec onError e-> bTransferToDec = False
+
+    bResult = True
+
+    strCatchValue=Strings.splice(strCatchValue,"\r","")
+    strCatchValue=Strings.splice(strCatchValue,"\n","")
+    strCatchValue=Strings.splice(strCatchValue,remeveString,"")
+    arrCell=Strings.tokenize(strCatchValue,strSeparate)
+    atlasLogInfo("arrCell=",arrCell)
+
+    # #combine the value which you want
+    strReturnValue = ""
+    if (iBegin<iEnd and iEnd<size(arrCell))
+    {
+        if bFlip
+        {
+            for i in range(iEnd,iBegin-1,-1)
+            {
+                strReturnValue=strReturnValue+arrCell[i]
+            }
+        }
+        else
+        {
+            for i in range(iBegin,iEnd+1,1)
+            {
+                strReturnValue=strReturnValue+arrCell[i]
+            }
+        }
+    }
+    else
+    {
+        Atlas.Log.error("Invaild index,please check it!")
+        bResult = False
+    }
+    while (Strings.range_of_substring(strReturnValue," ") !=Nil){
+        strReturnValue = Strings.splice(strCatchValue," ","")
+    }
+    if(bTransferToDec){
+        if Strings.range_of_substring(strReturnValue,"0x") ==Nil{
+            strReturnValue = "0x"+strReturnValue
+        }
+        strReturnValue = numerify(strReturnValue)
+    }
+    atlasLogInfo("combineHexData result:",strReturnValue)
+    return _createResponseDict(bResult,{parameter.output[0] : strReturnValue})
+}
+
+
+# Function: set return value format
+# dicSetting:{value(string): }
+def setValue(dicSetting)
+{
+    atlasLogInfo("HHHHHHHHHGGGGGGGGGGGGDDDDDDD")
+    atlasLogInfo("parameter:",dicSetting)
+    resultValue = ""
+    dicKeys=dicSetting.input
+    value =dicSetting.value onError e ->value=""
+    if (size(dicKeys)>1){
+        for key,value1 in dicKeys{
+        resultValue=resultValue+value1
+        }
+    }
+    else if (size(dicKeys)==1){
+            resultValue = dicSetting.input.customKey onError e -> resultValue=""
+    }
+    atlasLogInfo("resultValue",resultValue)
+
+    if(resultValue =="" and value !="")
+        {
+            resultValue=value
+        }
+    else if(resultValue != "" and value =="")
+        {
+           resultValue=resultValue
+        }
+    else if(resultValue != "" and value !=""){
+        resultValue=resultValue+value
+    }
+    retDict = {
+        "result" : True,
+        "output" : {
+            dicSetting.output[0] : resultValue
+            }
+    }
+    return retDict
+}
+
+def compare(dicSetting)
+{
+    atlasLogInfo('try to do compare function')
+    bRet = True
+    firstValue = dicSetting.input.firstKey onError e -> if True {
+        Atlas.Log.error('Lacking first key')
+        firstValue =""
+        bRet = False
+    }
+    secondValue = dicSetting.input.secondKey onError -> if True{
+        Atlas.Log.error('Lacking second key')
+        secondValue =""
+        bRet = False
+    }
+    if(firstValue==Nil or secondValue==Nil){
+        Atlas.Log.error('Lacking memoried key,please check!')
+        strReturnValue = "compare fail"
+        atlasLogInfo("compare fail")
+        bRet =bRet and False
+        retDict ={
+            "result" : bRet,
+            "output" : {"CompareResult" : strReturnValue}
+        }
+        return retDict
+    }
+    atlasLogInfo('first key is:',firstValue,"second key is:",secondValue)
+    bignoreCase = dicSetting.ignoreCase onError e -> bignoreCase = False
+    if (bignoreCase)
+        {
+            firstValue = Strings.tolower(firstValue)
+            secondValue = Strings.tolower(secondValue)
+        }
+    if String_IsEqual(firstValue, secondValue)
+    {
+        strReturnValue = "compare pass"
+        atlasLogInfo("compare pass")
+        bRet = bRet and True
+        retDict = {
+            "result" : bRet,
+            "output" : {"CompareResult" : strReturnValue}
+        }
+        return retDict
+    }
+    else
+    {
+        strReturnValue = "compare fail"
+        atlasLogInfo("compare fail")
+        bRet =bRet and False
+        retDict ={
+            "result" : bRet,
+            "output" : {"CompareResult" : strReturnValue}
+        }
+        return retDict
+    }
+}
+
+def customCombineData(dicSetting)
+{
+    atlasLogInfo("customCombineData:")
+    atlasLogInfo("parameter:",dicSetting)
+    outputKey = dicSetting.output[0]
+    retDict = {
+        "result" : True,
+        "output" : {outputKey : ""}
+    }
+
+    if(isNil(dicSetting) or size(dicSetting)==0)
+    {
+        retDict.result = False
+        return retDict
+    }
+    strInput = dicSetting.input.key
+    strOutput = ""
+    strReturnValue = ""
+    strSeparateString = dicSetting.separateString
+    arrSeparate = Strings.tokenize(strInput,strSeparateString)
+
+    strAddString = dicSetting.addString onError e-> strAddString = ""
+    bAddBefore = dicSetting.addBefore onError e-> bAddBefore = True
+    iBeginIndex = numerify(dicSetting.BeginIndex) onError e-> iBeginIndex=0
+    iEndIndex  = numerify(dicSetting.EndIndex) onError e-> iEndIndex=size(arrSeparate)-1
+
+    if size(arrSeparate)>0 and iBeginIndex>=0 and iEndIndex<size(arrSeparate) and iBeginIndex<=iEndIndex
+    {
+        for i in range(iBeginIndex, iEndIndex+1)
+        {
+            strOutput = strOutput + arrSeparate[i]
+        }
+    }
+    if bAddBefore{
+        strReturnValue=strAddString+stringify(strOutput)
+    }
+    else{
+        strReturnValue=stringify(strOutput)
+    }
+
+    retDict.output[outputKey] = strReturnValue
+    atlasLogInfo("customCombineData value:",retDict)
+    return retDict
+}
+def hexStringToASCII(dicSetting){
+
+    atlasLogInfo("parameter:",dicSetting)
+    strData = dicSetting.input.customKey onError e-> if True{
+        strData = parameter.input.defaultKey
+    }
+
+    retDict = {
+        "result" : True,
+        "output" : {
+            dicSetting.output[0] : ""
+        }
+    }
+
+    if has_key(dicSetting, "seperateString"){
+        strOutput = ""
+        arrSeparate = Strings.tokenize(strData,dicSetting.separateString)
+        iBeginIndex = numerify(dicSetting.BeginIndex) onError e-> iBeginIndex=0
+        iEndIndex  = numerify(dicSetting.EndIndex) onError e-> iEndIndex=size(arrSeparate)-1
+
+        if size(arrSeparate)>0 and iBeginIndex>=0 and iEndIndex<size(arrSeparate) and iBeginIndex<=iEndIndex{
+            for i in range(iBeginIndex, iEndIndex+1){
+                strOutput = strOutput + arrSeparate[i]
+            }
+            strData = strOutput
+        }
+        else{
+            Atlas.Log.error("parameter is wrong!")
+            retDict.result = False
+            return retDict
+        }
+    }
+    else{
+        strData     =   Strings.splice(strData," ","")
+        strData     =   Strings.splice(strData,"0X","")
+        strData     =   Strings.splice(strData,"0x","")
+
+    }
+    atlasLogInfo("strData is:",strData)
+
+    strReturnValue = Atlas.call_plugin("ConvertPlugin", "hexStringToString", {"hexString": strData})
+    retDict.output[dicSetting.output[0]] = strReturnValue
+    atlasLogInfo("hexStringToASCII retDict :",retDict)
+    return retDict
+}
+
+def combineData(dicSetting){
+    atlasLogInfo("parameter:",dicSetting)
+    # keyaNames=dicSetting.input.keys
+    seperateKey=dicSetting.SeperateString onError e -> seperateKey=""
+    strData=""
+    outPutKey = dicSetting.output[0]
+    retDict = {
+      "result": True,
+      "output": { outPutKey : ""}
+    }
+     for key,value in dicSetting.input{
+        strData=strData+value+seperateKey
+    }
+    retDict.output[outPutKey]=strData
+    atlasLogInfo("ReturnValue = ",strData)
+    return retDict
+}
+
+def catchValueByIndex(dicSetting)
+{
+    atlasLogInfo("parameter:",dicSetting)
+    strInput = dicSetting.input.customKey onError e-> if True{
+        strInput = parameter.input.defaultKey
+    }
+    retDict = {
+        "result" : True,
+        "output" : {dicSetting.output[0] : ""}
+    }
+    if Strings.location_of_substring(Strings.tolower(strInput),"not found")!=Nil or Strings.location_of_substring(Strings.tolower(strInput),"error")!=Nil or Strings.location_of_substring(Strings.tolower(strInput),"fail")!=Nil
+    {
+        atlasLogInfo("The key value of \"config\" in g_dicMemoryValues contain \"error not found fail \"")
+        retDict.result = False
+        return retDict
+    }
+    strSeparate = dicSetting.SeperateString
+    arrSeparate = Strings.tokenize(strInput,strSeparate)
+    iIndex = dicSetting.Index
+    if iIndex<0 or iIndex >size(arrSeparate)-1
+    {
+        Atlas.Log.error("catchValueByIndex: The param Index ERROR.")
+        retDict.result = False
+        return retDict
+    }
+    retDict.output[dicSetting.output[0]] = arrSeparate[iIndex]
+    return retDict
+}
+def compareWithKey(dicSetting){
+    atlasLogInfo("parameter:",dicSetting)
+    strResult = ""
+    bRet = False
+    # aryKeys = keys(dicSetting.input)
+    aryValues = values(dicSetting.input)
+    dicInput  = dicSetting.input
+    atlasLogInfo("dicInput:",dicInput)
+    iCount = size(aryValues)
+    if (iCount == 1){
+        arrUndisposed = aryValues[0]
+        if(arrUndisposed == Nil || !isArray(arrUndisposed) || size(arrUndisposed) == 0){
+            retDict = {
+                "result" : bRet,
+                "output" : {
+                    dicSetting.output[0] : ""
+                }
+            }
+            return retDict
+        }
+        arrSeriation = sortArrayUp(arrUndisposed)
+        if(arrSeriation == Nil){
+            retDict = {
+                "result" : bRet,
+                "output" : {
+                    dicSetting.output[0] : ""
+                }
+            }
+            return retDict
+        }
+        fMin = arrSeriation[0]
+        fMax = arrSeriation[size(arrSeriation) - 1]
+    }
+    else{
+        fMax = numerify(aryValues[0])
+        fMin =  fMax
+        atlasLogInfo("fMax-------:",fMin)
+        for i1 in range(1,size(aryValues)){
+            atlasLogInfo("************")
+            if (isNil(aryValues[i1])){
+                atlasLogInfo("COMPARE_WITH_KEY : Read value from memory dictionary fail!")
+                retDict = {
+                    "result" : bRet,
+                    "output" : {
+                        dicSetting.output[0] : ""
+                    }
+                }
+            }
+            bRet = True
+            fValue = numerify(aryValues[i1])
+            if (dicSetting.needAbs){
+                fMax = Math.fmax(Math.fabs(fMax),Math.fabs(fValue))
+                fMin = Math.fmin(Math.fabs(fMin),Math.fabs(fValue))
+            }else{
+                fMax = Math.fmax(fMax,fValue)
+                fMin = Math.fmin(fMin,fValue)
+            }
+        }
+    }
+    if (dicSetting.type == "Min"){
+        strResult = stringify(fMin)
+    }else{
+        strResult = stringify(fMax)
+    }
+    retDict = {
+        "result" : bRet,
+        "output" : {
+            dicSetting.output[0] : strResult
+        }
+    }
+    return retDict
+}
+
+
+def addPrefixOrPostfixByLength(dicSetting)
+{
+    atlasLogInfo(formatString("+","ADD_PREFIX_OR_POSTFIX_BY_LENGTH"))
+    atlasLogInfo("parameter:",dicSetting)
+    bResult = True
+    strKEY     = dicSetting.input.KEY
+    strPOSTKEY = dicSetting.input.POSTKEY
+    strLENGTH  = dicSetting.LENGTH
+    strPREFIX  = dicSetting.PREFIX
+    strPOSTFIX = dicSetting.POSTFIX
+
+    retDict = {
+      "result": True,
+      "output": { dicSetting.output[0] : "" }
+    }
+
+    if(strKEY == Nil or strLENGTH == Nil){
+        atlasLogInfo(formatString("<","lack of KEY or LENGTH parameter"+stringify(False)))
+        atlasLogInfo(formatString("+","ADD_PREFIX_OR_POSTFIX_BY_LENGTH "+stringify(False)))
+        return False
+    }
+    strValue = strKEY
+    if(strValue == Nil){
+        atlasLogInfo(formatString("<","lack of KEY's value in Globals.g_dicMemoryValues, please check!"+stringify(False)))
+        atlasLogInfo(formatString("+","ADD_PREFIX_OR_POSTFIX_BY_LENGTH "+stringify(False)))
+        return False
+    }
+
+    if(strPREFIX == Nil and strPOSTFIX == Nil){
+        atlasLogInfo(formatString("<","lack of PREFIX or POSTFIX parameter"+stringify(False)))
+        atlasLogInfo(formatString("+","ADD_PREFIX_OR_POSTFIX_BY_LENGTH "+stringify(False)))
+        return False
+    }
+    iValuelength = size(strValue)
+    iAimLength   = toNumber(strLENGTH)
+    iFixNumber = 0
+    if(iValuelength<iAimLength){
+        iFixNumber = iAimLength-iValuelength
+        if(strPREFIX == Nil and strPOSTFIX != Nil){
+            strPOSTKEY = strValue+strPOSTFIX*iFixNumber
+            strReturnValue = strValue+strPOSTFIX*iFixNumber
+            atlasLogInfo("ReturnValue is:" + strReturnValue)
+            atlasLogInfo(formatString("+","ADD_PREFIX_OR_POSTFIX_BY_LENGTH "+stringify(bResult)))
+            retDict.output[dicSetting.output[0]] = strReturnValue
+            return retDict
+        }
+        if(strPREFIX != Nil and strPOSTFIX == Nil)
+        {
+            strPOSTKEY = strPREFIX*iFixNumber+strValue
+            strReturnValue = strPREFIX*iFixNumber+strValue
+            atlasLogInfo("ReturnValue is:" + strReturnValue)
+            atlasLogInfo(formatString("+","ADD_PREFIX_OR_POSTFIX_BY_LENGTH "+stringify(bResult)))
+            retDict.output[dicSetting.output[0]] = strReturnValue
+            return retDict
+        }
+        if(strPREFIX != Nil and strPOSTFIX != Nil){
+            atlasLogInfo(formatString("<","Only support one type fix, prefix or postfix"+stringify(False)))
+            atlasLogInfo(formatString("+","ADD_PREFIX_OR_POSTFIX_BY_LENGTH "+stringify(False)))
+            return False
+        }
+    }
+    elsif (iValuelength == iAimLength)
+    {
+        atlasLogInfo(formatString("<","length is equal to given LENGTH, no need add prefix or postfix"+stringify(bResult)))
+        atlasLogInfo(formatString("+","ADD_PREFIX_OR_POSTFIX_BY_LENGTH "+stringify(bResult)))
+        strReturnValue = strPOSTKEY
+        retDict.output[dicSetting.output[0]] = strReturnValue
+        return retDict
+    }
+    else
+    {
+        atlasLogInfo(formatString("<","string length is larger than given LENGTH, please check!"+stringify(False)))
+        atlasLogInfo(formatString("+","ADD_PREFIX_OR_POSTFIX_BY_LENGTH "+stringify(False)))
+        return False
+    }
+
+    atlasLogInfo(formatString("+","ADD_PREFIX_OR_POSTFIX_BY_LENGTH "+stringify(bResult)))
+    retDict.output[dicSetting.output[0]] = strReturnValue
+    return retDict
+}
+
+def sortArray(dicSetting)
+{
+    atlasLogInfo("dicSetting:",dicSetting)
+    # strOutput0 = dicSetting.output[0]
+    # strOutput0 = dicSetting.output[0]
+    retDict = {
+        "result" : True,
+        "output" : {}
+    }
+    arrKeys = dicSetting.ArrayKey onError e-> if True{
+        retDict.result = False
+        Atlas.Log.error("funciton sortArray lacking of parameter ArrayKey, please check!")
+        return retDict
+    }
+
+    arrkeyvalue=[]
+    for i in range(0,size(arrKeys))
+        {
+            keyname=arrKeys[i]
+            value=toNumber(Globals.system.memory[keyname]) onError e-> if True{
+                retDict.result = False
+                Atlas.Log.error("The key",keyname,"doesn't exist, please check!")
+                return retDict
+            }
+            atlasLogInfo("keyname:",keyname,"value:",value)
+            arrkeyvalue=arrkeyvalue+[value]
+        }
+    atlasLogInfo("arrkeyvalue:",arrkeyvalue)
+    newArrkey = sortArrayUp(arrkeyvalue)
+    atlasLogInfo("newArrkey:",newArrkey)
+    retDict.output["MinValue"]=stringify(newArrkey[0])
+    retDict.output["MaxValue"]=stringify(newArrkey[-1])
+    return retDict
+}
+
+# Function:  For transfer single HEX to Binary and then catch one bit of them, you can select 0~7 index.
+# e.g.
+# =>  0xEE --> 1110 1110  if select 5, will return 1, if selct 4, will return 0.
+# Return:  Boole Value: True/False
+# Parameter:
+#   dicSetting:    Dictionary
+#        Index:    String
+#          Key:    String
+def hexToBinaryAndCatchByIndex(dicSetting)
+{
+    atlasLogInfo("dicSetting:",dicSetting)
+    value = dicSetting.input.customKey onError e-> value = dicSetting.input.defaultKey
+    outputKey = dicSetting.output[0]
+    retDict = {
+        "result" : True,
+        "output" : {outputKey : ""}
+    }
+    i = dicSetting.Index onError e-> if True{
+        retDict.result = False
+        Atlas.Log.error("funciton hexToBinaryAndCatchByIndex lacking of parameter Index, please check!")
+        return retDict
+    }
+
+    dicHexDic = {}
+    dicHexDic["0"] = "0000"
+    dicHexDic["1"] = "0001"
+    dicHexDic["2"] = "0010"
+    dicHexDic["3"] = "0011"
+    dicHexDic["4"] = "0100"
+    dicHexDic["5"] = "0101"
+    dicHexDic["6"] = "0110"
+    dicHexDic["7"] = "0111"
+    dicHexDic["8"] = "1000"
+    dicHexDic["9"] = "1001"
+    dicHexDic["A"] = "1010"
+    dicHexDic["B"] = "1011"
+    dicHexDic["C"] = "1100"
+    dicHexDic["D"] = "1101"
+    dicHexDic["E"] = "1110"
+    dicHexDic["F"] = "1111"
+    strbinaryString = ""
+    if(Strings.location_of_substring(value, "0x") != Nil)
+    {
+        value = value[2:4]
+        for index in range(0,size(value))
+        {
+            strKey = value[index:index+1]
+            strbinaryString = strbinaryString + dicHexDic[strKey]
+        }
+        value = strbinaryString[7-i:7-i+1]
+        retDict.output[outputKey] = value
+        return retDict
+    }
+    else
+    {
+        retDict.result = False
+        return retDict
+    }
+}
+
+def regexAndCombine(dicSetting)
+{
+    atlasLogInfo("parameters:",dicSetting)
+    strString = dicSetting.input.customKey onError e -> if  True {
+        Atlas.Log.error("strString is Nil,please check it!")
+    }
+    arrRegex = dicSetting.pattern
+    if (arrRegex == Nil or arrRegex == "" ){
+            Atlas.Log.error("arrRegex is Nil,please check it!")
+    }
+    outPutKey=dicSetting.output[0]
+    retDict={
+        "result": True,
+        "output": {outPutKey : ""}
+    }
+
+    count=size(arrRegex)
+    atlasLogInfo("Regex count:",count)
+
+    if (size(arrRegex)==2){
+
+        keyValue1=Regex.groups(strString,arrRegex[0],8)[0]
+        keyValue2=Regex.groups(strString,arrRegex[1],8)[0]
+
+        keyValue1 = Regex.replace(keyValue1, "^\\s+", "", 16)
+        keyValue1 = Regex.replace(keyValue1, "\\s+$", "", 16)
+        retDict.output.outPutKey = keyValue1 +";"+ keyValue2
+
+    }
+
+    if (size(arrRegex)==3){
+
+        keyValue1=Regex.groups(strString,arrRegex[0],8)[0]
+        keyValue2=Regex.groups(strString,arrRegex[1],8)[0]
+        keyValue3=Regex.groups(strString,arrRegex[2],8)[0]
+
+        retDict.output.outPutKey = keyValue1+keyValue2+keyValue3
+
+    }
+
+    if (size(arrRegex)==5){
+
+        keyValue1=Regex.groups(strString,arrRegex[0],8)[0]
+        # keyValue1 = Regex.replace(keyValue1, "^\\s+", "", 16)
+        keyValue1 = Regex.replace(keyValue1, "\\s+$", "", 16)
+
+        keyValue2=Regex.groups(strString,arrRegex[1],8)[0]
+        keyValue2 = Regex.replace(keyValue2, "^\\s+", "", 16)
+        keyValue2 = Regex.replace(keyValue2, "\\s+$", "", 16)
+
+        keyValue3=Regex.groups(strString,arrRegex[2],8)[0]
+        keyValue3 = Regex.replace(keyValue3, "^\\s+", "", 16)
+        keyValue3 = Regex.replace(keyValue3, "\\s+$", "", 16)
+
+        keyValue4=Regex.groups(strString,arrRegex[3],8)[0]
+        keyValue4 = Regex.replace(keyValue4, "^\\s+", "", 16)
+        keyValue4 = Regex.replace(keyValue4, "\\s+$", "", 16)
+
+        keyValue5=Regex.groups(strString,arrRegex[4],8)[0]
+
+        retDict.output.outPutKey = keyValue1+";"+keyValue2+";"+keyValue3+";"+keyValue4+";"+keyValue5
+
+    }
+
+    retDict = {
+            "result" : True,
+            "output" : {outPutKey : retDict.output.outPutKey}
+    }
+    return retDict
+}
+
+def compareTwoValue(parameter) {
+  _retDict = {}
+  _retDict.output = {}
+  _retDict.result = False
+
+  _inputValue = parameter.InputKeyValue onError e -> if True {
+    _inputValue = parameter.input.customKey onError e -> if True {
+      _inputValue = parameter.input.defaultKey
+    }
+  }
+  _compareValue = parameter.CompareKeyValue onError e -> if True {
+    Atlas.Log.error("funciton compareTwoValue lacking of parameter CompareKeyValue, please check!")
+    return _retDict
+  }
+  _expression = parameter.expression onError e -> if True {
+    Atlas.Log.error("funciton compareTwoValue lacking of parameter expression, please check!")
+    return _retDict
+  }
+
+  _hexValue = parameter.hexValue onError e-> _hexValue = False
+
+  if isNil(_inputValue) or isNil(_compareValue){
+    Atlas.Log.error("funciton compareTwoValue lacking of parameter CompareKeyValue or InputKeyValue, please check!")
+    return _retDict
+  }
+
+  atlasLogInfo("_inputValue is:",_inputValue)
+
+  if isString(_inputValue){
+    if(_hexValue){
+        _hex_value1 = Strings.toupper(stringify(_inputValue))
+        if _hex_value1[0:2]<>"0X" {
+            _hex_value1 = "0x" + _hex_value1
+        }
+        _inputValue = numerify(_hex_value1) onError e-> _retDict.result = False
+    }
+    else{
+        _inputValue = numerify(_inputValue) onError e-> _retDict.result = False
+    }
+  }
+  atlasLogInfo("_inputValue to number is:",_inputValue)
+
+  atlasLogInfo("_compareValue is:",_compareValue)
+  if isString(_compareValue){
+    if(_hexValue){
+        _hex_value2 = Strings.toupper(stringify(_compareValue))
+        if _hex_value2[0:2]<>"0X" {
+            _hex_value2 = "0x" + _hex_value2
+        }
+        _compareValue = numerify(_hex_value2) onError e-> _retDict.result = False
+    }
+    else{
+        _compareValue = numerify(_compareValue) onError e-> _retDict.result = False
+    }
+  }
+  atlasLogInfo("_compareValue to number is:",_compareValue)
+
+  atlasLogInfo("_expression is:",_expression)
+  if _expression == ">"{
+    if _inputValue > _compareValue{
+      _retDict.result = True
+    }
+  }
+  elsif _expression == "=="{
+    if _inputValue == _compareValue{
+      _retDict.result = True
+    }
+  }
+  elsif _expression == "<"{
+    if _inputValue < _compareValue{
+      _retDict.result = True
+    }
+  }
+  elsif _expression == ">="{
+    if _inputValue >= _compareValue{
+      _retDict.result = True
+    }
+  }
+  elsif _expression == "<="{
+    if _inputValue <= _compareValue{
+      _retDict.result = True
+    }
+  }
+  elsif _expression == "!="{
+    if _inputValue != _compareValue{
+      _retDict.result = True
+    }
+  }
+  else{
+    Atlas.Log.error("funciton compareTwoValue expression parameter is illegal, please check!")
+  }
+  # _retDict.output = {parameter.output[0] : }
+  return _retDict
+}
+def flipStringTwoByte(dicSetting){
+    atlasLogInfo("parameter:",dicSetting)
+    outPutKey = dicSetting.output[0]
+    retDict = {
+      "result": True,
+      "output": { outPutKey : ""}
+    }
+    bFlip=dicSetting.bFlip onError e -> bFlip = True
+    strPreValue=dicSetting.input.preKey onError e->if True {
+        Atlas.Log.error("NO SYSCFG VALUE")
+        retDict = {
+            "result": False,
+            "output": { outPutKey : ""
+            }
+        }
+        return retDict
+    }
+    atlasLogInfo("The syscfg value is ",strPreValue)
+    strAll = Strings.splice(Strings.splice(strPreValue," ",""),"0x","")
+    atlasLogInfo("The original string is ",strAll)
+    iOriginal = size(strAll)
+    if (iOriginal > 4){
+        atlasLogInfo("The string length "+ stringify(strPreValue) + " > 4,invalid!\n")
+        retDict = {
+            "result": False,
+            "output": { outPutKey : ""
+            }
+        }
+        return retDict
+    }
+    if (iOriginal % 4 != 0){
+        for i in range(0,4-iOriginal){
+            strAll = "0"+ strAll
+        }
+    }
+    atlasLogInfo("The original string is ",strAll)
+    i = 0
+    mutaStrFormat = ""
+    while (i < iOriginal ){
+        strOne = strAll[i: i+4]
+
+        arrPart  = Regex.groups(strOne,".{0}(.{2})",8)
+        atlasLogInfo("arrPart is ",arrPart)
+        strPart1 = arrPart[0]
+        strPart2 = arrPart[1]
+        atlasLogInfo("strPart is ",strPart1,strPart2)
+        # strPart1 = subByRegex(strOne,".{0}(.{2})")
+        # strPart2 = subByRegex(strOne,".{2}(.{2})")
+        if (bFlip){
+            mutaStrFormat = mutaStrFormat + strPart2 + strPart1
+        }else{
+            mutaStrFormat = mutaStrFormat + strPart1 + strPart2
+        }
+        i =i +4
+    }
+    atlasLogInfo("The final value is ",mutaStrFormat)
+    retDict.output[outPutKey] = mutaStrFormat
+    return retDict
+}
+
+#======================================================================================#
+def _createResponseDict_v2(bResult,outputDict,record) {
+  _retDict = {}
+
+  _retDict.result = bResult
+  _retDict.output = outputDict
+  _retDict.record = record
+
+  return _retDict
+}
+
+def Combine_HEX_Data(parameter) {
+
+  _array = parameter.input[0]
+
+  _retStr = ""
+
+  for _item in _array {
+    _retStr = _retStr + _item
+  }
+
+  return _createResponseDict(True,{parameter.output[0] : _retStr})
+}
+
+def skipIfEqual_v2(parameter) {
+  _skipCount = 0
+  _skipTestList = []
+
+  _value0 = parameter.input.value0
+  _value1 = parameter.input.value1
+
+  _value0 = stringify(_value0)
+  _value1 = stringify(_value1)
+
+
+  _option = parameter.option onError e -> if True {
+    _option = 16
+  }
+  # if _value0==_value1 {
+  #   _skipCount = parameter.skipCount onError e -> if True {
+  #   }
+
+  #   _skipTestList = parameter.skipTestList onError e -> if True {
+  #   }
+  # }
+  _matches = Regex.matches(_value0,_value1,_option)
+
+  if size(_matches)>0 {
+    _skipCount = parameter.skipCount onError e -> if True {
+    }
+
+    _skipTestList = parameter.skipTestList onError e -> if True {
+    }
+  }
+
+  Globals.system.skipTestCount = _skipCount
+  Globals.system.skipTestList = Globals.system.skipTestList + _skipTestList
+  Globals.system.skipTestMessage = parameter.message onError e -> if True {
+    Globals.system.skipTestMessage = ""
+  }
+
+  Atlas.create_record(["skipIfEqual",cformat("value0=%s",_value0),cformat("value1=%s",_value1)],True)
+
+  return _createResponseDict(True,{})
+}
+
+def nothingIfEqual_v2(parameter) {
+  _skipCount = 0
+  _skipTestList = []
+
+  _value0 = parameter.input.value0
+  _value1 = parameter.input.value1
+
+  _value0 = stringify(_value0)
+  _value1 = stringify(_value1)
+
+  _option = parameter.option onError e -> if True {
+    _option = 16
+  }
+
+  # if _value0<>_value1 {
+  #   _skipCount = parameter.skipCount onError e -> if True {
+  #   }
+  #   _skipTestList = parameter.skipTestList onError e -> if True {
+  #   }
+  # }
+  _matches = Regex.matches(_value0,_value1,_option)
+
+  if size(_matches)==0 {
+    _skipCount = parameter.skipCount onError e -> if True {
+    }
+    _skipTestList = parameter.skipTestList onError e -> if True {
+    }
+  }
+
+  Globals.system.skipTestCount = _skipCount
+  Globals.system.skipTestList = Globals.system.skipTestList + _skipTestList
+  Globals.system.skipTestMessage = parameter.message onError e -> if True {
+    Globals.system.skipTestMessage = ""
+  }
+
+  Atlas.create_record(["nothingIfEqual",cformat("value0=%s",_value0),cformat("value1=%s",_value1)],True)
+
+  return _createResponseDict(True,{})
+}
+
+def popUpPassFail(parameter) {
+  _msg = stringify(parameter.message)
+  _result = Atlas.call_app("show-form", { "type" : "passFail", "message" : _msg})
+  return _createResponseDict(True,{parameter.output[0] : _result})
+}
+
+def popUpInputBox(parameter) {
+
+  _msg = stringify(parameter.message)
+
+  layout = [];
+
+  label =
+  {
+    "type": "label",
+    "text" : _msg
+  }
+
+  field =
+  {
+    "type" : "field",
+    "id" : "input"
+  }
+
+  layout = layout + [label] + [field]
+  form_parameter = {
+    "type" : "custom",
+    "layout" : layout
+  }
+
+  inputArray = Atlas.call_app("show-form", form_parameter)
+  _value = inputArray["input"] onError -> theInput = ""
+  return _createResponseDict(True,{parameter.output[0] : _value})
+}
+
+def messageBox(parameter) {
+
+  _msg = stringify(parameter.message) onError e -> if True {
+    _msg = stringify(parameter.input.customKey) onError e -> if True {
+      _msg = stringify(parameter.input.defaultKey)
+    }
+  }
+
+  _tag = stringify(parameter.tag) onError e -> if True {
+    _tag = Nil
+  }
+
+  if _tag == "1"
+  {
+    Atlas.call_app_sync("show-form", { "type" : "message", "message" : _msg})
+  }
+  else
+  {
+    Atlas.call_app("show-form", { "type" : "message", "message" : _msg})
+  }
+  
+  return _createResponseDict(True,{})
+}
+
+def cacheToMemory(parameter) {
+  _key = stringify(parameter.key)
+  _value = stringify(parameter.value)
+
+  Atlas.create_record(["cacheToMemory",cformat("key=%s",_key),cformat("value=%s",_value)],True)
+
+  return _createResponseDict(True,{_key : _value})
+}
+
+
+def rangeTable(parameter) {
+  _inputString = parameter.input.customKey onError e -> if True {
+    _inputString = parameter.input.defaultKey
+  }
+  _valueForNotFound = parameter.valueForNotFound onError e -> if True {
+    _valueForNotFound = Nil
+  }
+  _rangeTable = parameter.rangeTable
+
+  _output = _valueForNotFound
+
+  for _key,_value in _rangeTable {
+    _range=tokenize(_value,":")
+    _lowerRange = _range[0]
+    _upperRange = _range[1]
+    if ( numerify(_lowerRange) <= numerify(_inputString) ) && ( numerify(_inputString) < numerify(_upperRange) ){
+      _output = _key
+      break;
+    }
+  }
+  return _createResponseDict(True,{parameter.output[0] : _output})
+
+}
+
+
+def mappingTable_v2(parameter) {
+
+  _inputString = parameter.input.customKey onError e -> if True {
+    _inputString = parameter.input.defaultKey
+  }
+
+  _valueForNotFound = parameter.valueForNotFound onError e -> if True {
+    _valueForNotFound = Nil
+  }
+
+  _option = parameter.option onError e -> if True {
+    _option = 16
+  }
+
+  _inputString = stringify(_inputString)
+  _mappingTable = parameter.mappingTable
+
+
+  _output = _valueForNotFound
+
+  for _key,_value in _mappingTable {
+    _patter = _value
+    _matches = Regex.matches(_inputString,_patter,_option)
+
+    if size(_matches)>0 {
+      _output = _key
+      break;
+    }
+  }
+
+  Atlas.create_record(["mappingTable",parameter.output[0],_output],True)
+
+  return _createResponseDict(True,{parameter.output[0] : _output})
+}
+
+def addDeviceAttribute(parameter) {
+  _key = parameter.key
+  _value = parameter.value
+
+  Atlas.add_device_attribute(_key, _value)
+
+  if _key=="serialnumber" {
+    Globals.system.Dut.serialNumber = _value
+  }
+
+  return _createResponseDict(True,{})
+}
+
+def regexProcess_v2(parameter) {
+
+  _string = parameter.input.customKey onError e -> if True {
+    _string = parameter.input.defaultKey
+  }
+
+  _option = parameter.option onError e -> if True {
+    _option = 16
+  }
+
+  _groups = Regex.groups(_string, parameter.pattern, _option)
+
+  _result = []
+
+  for _group in _groups {
+
+    _group = Regex.replace(_group, "^\\s+", "", 16)
+    _group = Regex.replace(_group, "\\s+$", "", 16)
+    _group = Regex.replace(_group, "^\\r+", "", 16)
+    _group = Regex.replace(_group, "\\r+$", "", 16)
+    _group = Regex.replace(_group, "^\\n+", "", 16)
+    _group = Regex.replace(_group, "\\n+$", "", 16)
+
+    _result = _result :: _group
+
+  }
+
+  _foundValue = True
+  if size(_result)==0 {
+    _foundValue = False
+    _result = Nil
+  }
+  else if size(_result)==1 {
+    _result = _result[0]
+  }
+
+  Atlas.create_record(["regexProcess",parameter.output[0]],True)
+
+  return _createResponseDict(_foundValue,{parameter.output[0] : _result})
+}
+
+def runshellcommand(parameter) {
+
+  _command = parameter.input.customKey onError e -> if True {
+    _command = parameter.input.defaultKey
+  }
+
+  _result = Atlas.call_plugin("CPlusPlusCommon", "RunShellCommand", {"command": _command})
+
+  atlasLogInfo("Tristar>>Herley:", _result)
+  return _createResponseDict(True,{parameter.output[0] : _result})
+}
+
+def convertHexToDec_v2(parameter) {
+
+  _stringToConvert = parameter.input.customKey onError e -> if True {
+    _stringToConvert = parameter.input.defaultKey
+  }
+
+  _hex_value = stringify(_stringToConvert)
+
+  _hex_value = Strings.toupper(_hex_value)
+
+  if _hex_value[0:2]<>"0X" {
+    _hex_value = "0x" + _hex_value
+  }
+
+  _dec_value = numerify(_hex_value)
+
+  Atlas.create_record(["convertHexToDec",parameter.output[0],stringify(_dec_value)],True)
+
+  return _createResponseDict(True,{parameter.output[0] : _dec_value})
+}
+
+def skipByRegex_v2(parameter) {
+  _skipCount = 0
+  _skipTestList = []
+
+  _string = parameter.input.customKey onError e-> if True{
+    _string = parameter.input.defaultKey
+  }
+  _pattern = parameter.pattern
+  _groups = Regex.groups(_string, _pattern, 8)
+  _result = Nil
+  if size(_groups) > 0 {
+    _result = _groups[0]
+  }
+
+  _passSkip = parameter.passSkip onError e-> _passSkip = False
+  atlasLogInfo("passSkip:",_passSkip,"catchResult:",_result)
+  if(_passSkip and _result != Nil){
+     _skipCount = parameter.skipCount onError e -> if True {
+    }
+
+    _skipTestList = parameter.skipTestList onError e -> if True {
+    }
+  }
+  else if(!_passSkip){
+    _skipCount = parameter.skipCount onError e -> if True {
+    }
+
+    _skipTestList = parameter.skipTestList onError e -> if True {
+    }
+  }
+  Globals.system.skipTestCount = _skipCount
+  Globals.system.skipTestList = Globals.system.skipTestList + _skipTestList
+  atlasLogInfo("skipByRegex:",_skipCount)
+  return _createResponseDict(True,{parameter.output[0] : "PASS"})
+}

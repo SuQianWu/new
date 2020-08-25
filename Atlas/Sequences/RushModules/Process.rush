@@ -1,0 +1,1275 @@
+
+def getStartTime(parameter){
+    return _createResponseDict(True,{parameter.output[0]: Globals.stationStartTime})
+}
+
+def renameUartAndCSVLogs(parameter)
+{
+    renameLogs()
+    return _createResponseDict(True,{})
+}
+
+def notInitBaudRate(parameter){
+    disableInitBaud()
+    return _createResponseDict(True,{})
+}
+
+def setSerialNumber(parameter){
+    serialnumber = parameter.serialnumber
+    Globals.system.serialnumber = serialnumber
+    Atlas.add_device_attribute("serialnumber",serialnumber)
+    return _createResponseDict(True,{})
+}
+
+def judgeBIN(dicSetting)
+{
+    atlasLogInfo("judgeBIN")
+    atlasLogInfo("parameter:",dicSetting)
+    strBin = dicSetting.input.strBinKey
+    outPutKey = dicSetting.output[0]
+    retDict = {
+      "result": True,
+      "output": { outPutKey : ""}
+    }
+    if(Strings.isdigit(strBin))
+    {
+        iValue = numerify(strBin) onError e -> iValue = Nil
+        if(iValue <= 61100){
+            strReturnValue = "BIN0.5"
+        }
+        else if(iValue > 61100 && iValue <= 122200){
+            strReturnValue = "BIN1.0"
+        }
+         else if(iValue > 122200 && iValue <= 158860){
+            strReturnValue = "BIN1.3"
+        }
+         else if(iValue > 158860 && iValue <= 183300){
+            strReturnValue = "BIN1.5"
+        }
+         else if(iValue > 183300 && iValue <= 219960){
+            strReturnValue = "BIN1.8"
+        }
+        else if(iValue > 219960){
+            strReturnValue = "BIN2"
+        }
+    }
+    else{
+        Atlas.Log.error("Can not get the data or the data is not a digit!")
+        retDict.result = False
+    }
+
+    atlasLogInfo("ReturnValue =",strReturnValue)
+    retDict.output[outPutKey] = strReturnValue
+    return retDict
+}
+
+
+def combineConfig(parameter)
+{
+    atlasLogInfo("begin combineConfig")
+    strConfig = parameter.input.configSFC onError e-> strConfig = "NULL"
+    strUnitConfig = parameter.input.configUnit onError e-> strUnitConfig = "NULL"
+
+    strUNIT = "*"
+    strBUILD_MATRIX_CONFIG = "*"
+    strBUILD_EVENT = "*"
+    strSBUILD = "*"
+    strFATPConfig = "*"
+    dicOutput = {}
+    strReturnValue = ""
+    bRet = True
+
+    if (strConfig == Nil or strConfig == "NULL"){
+        strReturnValue = "No FATP config, skip burn CFG#"
+        atlasLogInfo(strReturnValue)
+        return _createResponseDict(bRet,{parameter.output[0]: strReturnValue})
+    }
+
+    arrFATPConfig = tokenize(strConfig,"/")
+    if(size(arrFATPConfig) < 5)
+    {
+        atlasLogInfo("FATP config incorrect:" + strConfig)
+        strReturnValue = "FATP config incorrect!"
+        bRet = False
+    }
+    else
+    {
+        strUNIT = arrFATPConfig[4]
+        strSBUILD = arrFATPConfig[0] + "-" + arrFATPConfig[1] + "_" + arrFATPConfig[3]
+        strBUILD_MATRIX_CONFIG = arrFATPConfig[3]
+        strBUILD_EVENT = arrFATPConfig[0] + "-" + arrFATPConfig[1]
+
+        arrMlbConfig = tokenize(strUnitConfig,"/")
+        if (size(arrMlbConfig) < 4){
+            arrMlbConfig = ["*","*","*","*","*"]
+        }
+        strCfg = arrMlbConfig[0] + "/" + arrMlbConfig[1] + "/" + arrMlbConfig[2] + "/" + arrMlbConfig[3]
+        if (arrMlbConfig[2] =="SUB"){
+            strCfg = arrMlbConfig[1] + "/" + arrMlbConfig[2]
+        }
+        strFATPConfig = strCfg + "/" + strBUILD_MATRIX_CONFIG + "/" + strUNIT
+        strReturnValue = strFATPConfig
+    }
+    dicResult = {"CFG": strFATPConfig,
+            "UNIT#" : strUNIT,
+            "S_BUILD": strSBUILD,
+            "BUILD_EVENT": strBUILD_EVENT,
+            "BUILD_MATRIX_CONFIG": strBUILD_MATRIX_CONFIG,
+            }
+    iSize = size(parameter.output)
+    if iSize == 1
+        {
+            dicOutput[parameter.output[0]] = strReturnValue
+        }
+    else{
+            dicOutput[parameter.output[0]] = strReturnValue
+            for i in range(1,iSize){
+                dicOutput[parameter.output[i]] = dicResult[parameter.output[i]]
+        }
+    }
+
+    atlasLogInfo("The return value:",dicOutput)
+    return _createResponseDict(bRet,dicOutput)
+}
+
+
+def judgeConfigForSub(dicSetting){
+    atlasLogInfo("parameter:",dicSetting)
+    strResult = ""
+    strConfig = dicSetting.input.customKey onError e -> if True {
+        strConfig = ""
+    }
+    atlasLogInfo("&&&&&&&&&&&&&&&&&&&&&")
+    if(strConfig == "")
+    {
+        atlasLogInfo("&&&&&&&&&&&&&&&&&&&&&")
+        atlasLogInfo("No FATP config, skip upload config.")
+        retDict = {
+            "result" : False,
+            "output" : {
+                dicSetting.output[0] : strConfig
+            }
+        }
+        return retDict
+
+        # atlasLogInfo("Missing Parameter, ERROR!")
+        # strResult = "Missing Parameter, ERROR!"
+        # retDict = {
+        #     "result" : False,
+        #     "output" : {
+        #         dicSetting.output[0] : strResult
+        #     }
+        # }
+        # return retDict
+
+    }
+    # if(strConfig == Nil or strConfig == "" or strConfig == "NULL" or strConfig == "null")
+    # {
+    #     atlasLogInfo("No FATP config, skip upload config.")
+    #     retDict = {
+    #         "result" : False,
+    #         "output" : {
+    #             dicSetting.output[0] : strResult
+    #         }
+    #     }
+    #     return retDict
+    # }
+    else{
+        atlasLogInfo("******************")
+
+        # strResult = strConfig
+        retDict = {
+            "result" : True,
+            "output" : {
+                dicSetting.output[0] : strConfig
+            }
+        }
+        return retDict
+    }
+}
+def scanAndCheckSNRule(dicSetting){
+    atlasLogInfo("parameters :", dicSetting)
+    bRet                = True
+    dicSNArrangement=dicSetting.SNArrangement
+    # atlasLogInfo("sn info: ",dicSNArrangement)
+    count=size(dicSNArrangement)
+    # atlasLogInfo("sn count: ",count)
+    outPutKey=dicSetting.output[0]
+    retDict={
+    "result": bRet,
+    "output": { outPutKey : ""}
+    }
+
+# loop test request lack this module
+    iCycleCount        = Globals.system.stationSetup.system.maxLoopCount
+    if(iCycleCount != Nil and iCycleCount != 1 and iCycleCount != 0)
+    {
+        strUnit_identifier = Atlas.Unit.unit_identifier
+        if(Atlas.call_plugin("SystemMemory","getObjectByKey",{"key": strUnit_identifier + "iCurrentCount"}) == Nil)
+        {
+            iCurrentCount = 0
+        }
+        else if(Atlas.call_plugin("SystemMemory","getObjectByKey",{"key": strUnit_identifier + "iCurrentCount"}) == iCycleCount)
+        {
+            iCurrentCount = 0
+        }
+        else
+        {
+            iCurrentCount = Atlas.call_plugin("SystemMemory","getObjectByKey",{"key": strUnit_identifier + "iCurrentCount"})
+        }
+
+        iCurrentCount = iCurrentCount + 1
+
+        atlasLogInfo("the current loop count is : ",iCurrentCount)
+        Atlas.call_plugin("SystemMemory","storeIntoDictionary",{"key": strUnit_identifier + "iCurrentCount", "value": iCurrentCount})
+
+        if(iCurrentCount != 1)
+        {
+            strSNValue = Atlas.call_plugin("SystemMemory","getObjectByKey",{"key": strUnit_identifier + "SN"})
+            if(Strings.location_of_substring(StationInfo.station_id(),"SA-FLEX2") != Nil or Strings.location_of_substring(StationInfo.station_id(),"GATEKEEPER-PREBURN") != Nil)
+            {
+
+                loopTestWithFixture()
+            }
+
+            for key,value in dicSNArrangement
+            {
+                dicSNinfo = value
+                strSNTitle = dicSNinfo["Show title on UI"]
+
+                retDict.output[strSNTitle] = strSNValue
+                return retDict
+            }
+        }
+
+    }
+
+    #  PART1:pop up scan sn window and scan sn firstly
+    # group
+    if(has_key(Atlas.Unit.user_info, "units"))
+    {
+        units =  Atlas.Unit.user_info["units"]
+        layout = [];
+
+        for i in range(units) {
+            label = {
+            "type": "label",
+            "text" : units[i]
+            }
+            type = {
+            "type" : "field",
+            "id" : units[i]
+            }
+            layout = layout + [label] + [type]
+        }
+        atlasLogInfo("layout: " + stringify(layout))
+
+        serial_number_request = {
+        "type" : "custom",
+        "layout" : layout
+        }
+
+        dicScanSN = Atlas.call_app_sync("show-form", serial_number_request)
+    }
+    else
+    {
+        layout = []
+        for i in range(0,count)
+        {
+            label = {
+            "type": "label",
+            "text" : Atlas.Unit.unit_identifier
+            }
+            type = {
+            "type" : "field",
+            "id" : Atlas.Unit.unit_identifier
+            }
+            layout = layout + [label] + [type]
+        }
+        dicScanSN = Atlas.call_app("show-form", {"type": "custom", "layout": layout})
+        atlasLogInfo("dicScanSN ",dicScanSN)
+    }
+
+    #PART2:check sn rule
+    for key,value in dicSNArrangement
+    {
+    # get current unit
+        strUnit_identifier = Atlas.Unit.unit_identifier
+        dicSNinfo=value
+        # atlasLogInfo("dicSNinfo ",dicSNinfo)
+        strSNTitle =dicSNinfo["Show title on UI"]
+        retDict.output[strSNTitle]=dicScanSN[strUnit_identifier]
+        strSNValue = dicScanSN[strUnit_identifier]
+        atlasLogInfo("strSNValue ",strSNValue)
+
+        # For SN scan duplicate case prevention
+        if(Strings.location_of_substring(StationInfo.station_id(),"GATEKEEPER-PREBURN") != Nil or Strings.location_of_substring(StationInfo.station_id(),"SA-FLEX2") != Nil )
+        {
+            arrDicScanSN = values(dicScanSN)
+            if(size(arrDicScanSN) > 1)
+            {
+                for index in range(0,size(arrDicScanSN) - 1)
+                {
+                   for index in range(0,size(arrDicScanSN) - 1)
+                    {
+                        if(arrDicScanSN[index] == arrDicScanSN[index + 1])
+                        {
+                            Atlas.call_app("show-form", { "type" : "message", "message" : "SN重複刷入" + "\n请检查并重新刷入正确的SN！！"})
+                            bRet = False
+                            return bRet
+                        }
+                    } 
+                }
+            }
+        }
+        
+
+        # For Loop Test
+        if(iCycleCount != Nil and iCycleCount != 1 and iCycleCount != 0)
+        {
+            Atlas.call_plugin("SystemMemory","storeIntoDictionary",{"key": strUnit_identifier + "SN", "value": strSNValue})
+        }
+        #     # basic judge
+        if (strSNValue == "")
+        {
+            atlasLogInfo("scanAndCheckSNRule==> input ",strSNTitle,"is nothing,please check!")
+            bRet = False
+            Atlas.call_app("show-form", { "type" : "message", "message" : stringify(strSNTitle) + "输入为空" + "\n请检查并重新刷入正确的SN！！"})
+            #reCheck:pop up scan sn window and check again
+            if(Strings.location_of_substring(StationInfo.station_id(),"GATEKEEPER-PREBURN") != Nil or Strings.location_of_substring(StationInfo.station_id(),"SA-FLEX2") != Nil )
+            {
+                layout = []
+                for i in range(0,count)
+                {
+                    label = {
+                    "type": "label",
+                    "text" : Atlas.Unit.unit_identifier
+                    }
+                    type = {
+                    "type" : "field",
+                    "id" : Atlas.Unit.unit_identifier
+                    }
+                    layout = layout + [label] + [type]
+                }
+                dicReScanSN = Atlas.call_app("show-form", {"type": "custom", "layout": layout})
+                atlasLogInfo("dicReScanSN:",dicReScanSN)
+
+                for key,value in dicSNArrangement
+                {
+                # get current unit
+                    strUnit_identifier = Atlas.Unit.unit_identifier
+                    dicSNinfo=value
+                    # atlasLogInfo("dicSNinfo ",dicSNinfo)
+                    strSNTitle =dicSNinfo["Show title on UI"]
+                    retDict.output[strSNTitle]=dicReScanSN[strUnit_identifier]
+                    bRet    = True
+                }
+                
+                return retDict
+            }
+            else
+                {
+                    bRet = scanAndCheckSNRule(dicSetting)
+                    return bRet 
+                }
+           
+        }
+    #     # check sn rule
+        bSNNeedCheckRule    = dicSNinfo["Need Judge Rule"]
+        atlasLogInfo("bSNNeedCheckRule ",bSNNeedCheckRule)
+        SNRuleLength        = dicSNinfo["SN Rule Lenth"] onError e -> SNRuleLength=""
+        if (bSNNeedCheckRule)
+        {
+        #check sn length
+            arrSNLength    = []
+            bLength = False
+            if(SNRuleLength == "" or SNRuleLength == Nil){
+                bLength = True
+                return retDict
+            }
+            else{
+                arrSNLength    = Strings.tokenize(SNRuleLength,",")
+            }
+            for iLength in range(0,size(arrSNLength))
+            {
+                iSNLength = numerify(arrSNLength[iLength])
+                #judge each length.. and separated by ','
+                if(iSNLength != 0 and size(strSNValue) == iSNLength){
+                    bLength = True
+                    atlasLogInfo("scanAndCheckSNRule==> check sn length rule: PASS")
+                    break
+                }
+            }
+            if(bLength == False)
+            {
+                if(bRet){
+                    bRet    = False
+                    atlasLogInfo("scanAndCheckSNRule==> The first fail SN.")
+                }
+                Atlas.call_app("show-form", { "type" : "message", "message" : stringify(strSNTitle) + "长度不匹配，长度应该为" + stringify(arrSNLength) + "\n请检查并重新刷入正确的SN！！"})
+                #reCheck:pop up scan sn window and check again
+               if(Strings.location_of_substring(StationInfo.station_id(),"GATEKEEPER-PREBURN") != Nil or Strings.location_of_substring(StationInfo.station_id(),"SA-FLEX2") != Nil )
+                {
+                    layout = []
+                    for i in range(0,count)
+                    {
+                        label = {
+                        "type": "label",
+                        "text" : Atlas.Unit.unit_identifier
+                        }
+                        type = {
+                        "type" : "field",
+                        "id" : Atlas.Unit.unit_identifier
+                        }
+                        layout = layout + [label] + [type]
+                    }
+                    dicReScanSN = Atlas.call_app("show-form", {"type": "custom", "layout": layout})
+                    atlasLogInfo("dicReScanSN:",dicReScanSN)
+
+                    for key,value in dicSNArrangement
+                    {
+                    # get current unit
+                        strUnit_identifier = Atlas.Unit.unit_identifier
+                        dicSNinfo=value
+                        # atlasLogInfo("dicSNinfo ",dicSNinfo)
+                        strSNTitle =dicSNinfo["Show title on UI"]
+                        retDict.output[strSNTitle]=dicReScanSN[strUnit_identifier]
+                        bRet    = True
+                    }
+                    
+                    return retDict
+                }
+            else
+                {
+                    bRet = scanAndCheckSNRule(dicSetting)
+                    return bRet 
+                }
+
+            }
+            else
+            {
+                atlasLogInfo("scanAndCheckSNRule==> Check sn length rule: PASS")
+            }
+        }
+    }
+    atlasLogInfo("result:",retDict)
+    return retDict
+}
+
+def loopTestWithFixture()
+{
+bRet =True
+
+
+
+Atlas.call_plugin_sync("FixtureForButtonAndQT","changeDelimiter",{"delimiter": "@_@"})
+
+Atlas.call_plugin_sync("FixtureForButtonAndQT","changeLineTerminator",{"terminator": "\r"})
+fixture_URL = Globals.system.stationSetup.system.Fixture_URL
+Atlas.call_plugin_sync("FixtureForButtonAndQT","open",{"uartPortURL": fixture_URL,"logFileName": "FixtureLog"})
+
+
+if(Strings.location_of_substring(StationInfo.station_id(),"GATEKEEPER-PREBURN") != Nil)
+{
+
+
+Atlas.call_plugin_sync("FixtureForButtonAndQT","sendCommand",{"command":  "HOLD IN"})
+
+Atlas.call_plugin_sync("FixtureForButtonAndQT","sendCommand",{"command": "PROBE LINK"})
+
+Atlas.call_plugin_sync("FixtureForButtonAndQT","sendCommand",{"command": "SIM IN"})
+
+Atlas.call_plugin_sync("FixtureForButtonAndQT","sendCommand",{"command": "enter diags"})
+
+
+}
+
+if(Strings.location_of_substring(StationInfo.station_id(),"SA-FLEX2") != Nil)
+{
+
+
+Atlas.call_plugin_sync("FixtureForButtonAndQT","sendCommand",{"command":  "Cap In"})
+
+Atlas.call_plugin_sync("FixtureForButtonAndQT","sendCommand",{"command": "Cap Down"})
+
+
+}
+
+
+Atlas.call_plugin_sync("FixtureForButtonAndQT","close")
+
+
+
+
+return bRet;
+}
+
+def setUnitAndReadFixtureInfo(dicSetting)
+{
+	bRet = True
+	retDict = {
+	        "result" : True
+	        }
+
+	dicSFMUSetting = Atlas.Unit.user_info["SFMUSetting"]
+	atlasLogInfo("Start test setUnitAndReadFixtureInfo==>", dicSFMUSetting)
+	if(dicSFMUSetting == Nil or size(dicSFMUSetting) == 0)
+	{
+		atlasLogInfo("setUnitAndReadFixtureInfo==> No need set unit!")
+		return True
+	}
+
+	Atlas.call_plugin_sync("FixtureForButtonAndQT","changeDelimiter",{"delimiter": "@_@"})
+
+	Atlas.call_plugin_sync("FixtureForButtonAndQT","changeLineTerminator",{"terminator": "\r"})
+
+	fixture_URL = Globals.system.stationSetup.system.Fixture_URL
+
+
+	resultOfOpenPort = Atlas.call_plugin_sync("FixtureForButtonAndQT","open",{"uartPortURL": fixture_URL,"logFileName": "FixtureLog"})
+
+	atlasLogInfo("FixtureForButtonAndQT.open==>", resultOfOpenPort)
+	while(True)
+	{
+		fixtureStatusCommand = dicSFMUSetting["MONITORFIXTURE"]["COMMAND"]
+		atlasLogInfo("dicFixtureStatus==> ", fixtureStatusCommand)
+		resultOfCheckStatus = Atlas.call_plugin_sync("FixtureForButtonAndQT","sendCommand",{"command": fixtureStatusCommand})
+
+		pattern = "(Check Status.*?pass|Check Status.*?Pass)"
+		groups = Regex.groups(resultOfCheckStatus, pattern, 8)
+		atlasLogInfo(groups)
+
+		resultCatch = Nil
+
+		if size(groups) > 0
+		{
+
+			resultCatch = groups[0]
+			atlasLogInfo(resultCatch)
+			resultCatch = Regex.replace(resultCatch, "^\\s+", "", 16)
+			resultCatch = Regex.replace(resultCatch, "\\s+$", "", 16)
+			atlasLogInfo(resultCatch)
+            Atlas.call_plugin_sync("FixtureForButtonAndQT","close")
+			break
+		}
+		else
+		{
+			atlasLogInfo("  check Fixture status not well ")
+		}
+	}
+    System.sleep(0.05)
+    Atlas.call_plugin_sync("FixtureForButtonAndQT","changeDelimiter",{"delimiter": "@_@"})
+    Atlas.call_plugin_sync("FixtureForButtonAndQT","changeLineTerminator",{"terminator": "\r"})
+    fixture_URL = Globals.system.stationSetup.system.Fixture_URL
+    resultOfOpenPort = Atlas.call_plugin_sync("FixtureForButtonAndQT","open",{"uartPortURL": fixture_URL,"logFileName": "FixtureLog"})
+
+	fixtureInfoCommand = dicSFMUSetting["FIXTUREINFO"]["COMMAND"]
+	atlasLogInfo("FixtureInfoCommand==> ", fixtureInfoCommand)
+	dicFixtureInfoRet = Atlas.call_plugin_sync("FixtureForButtonAndQT","sendCommand",{"command": fixtureInfoCommand})
+	atlasLogInfo("dicFixtureInfoRet==> ", dicFixtureInfoRet)
+
+
+	fixtureSNCommand = dicSFMUSetting["FIXTURESN"]["COMMAND"]
+	atlasLogInfo("FixtureSNCommand==> ", fixtureSNCommand)
+	dicFixtureSNRet = Atlas.call_plugin_sync("FixtureForButtonAndQT","sendCommand",{"command": fixtureSNCommand})
+	atlasLogInfo("dicFixtureSNRet==> ", dicFixtureSNRet)
+
+
+	retDict.output = {
+	dicSetting.output[0] : dicFixtureInfoRet,
+	dicSetting.output[1] : dicFixtureSNRet
+	}
+
+
+
+
+	return retDict;
+}
+
+def waitingAllUnitFinish()
+{
+
+
+retDict = {
+"result" : True,
+}
+
+
+
+Atlas.call_plugin_sync("FixtureForButtonAndQT","sendCommand",{"command": "Reset Fixture"})
+Atlas.call_plugin_sync("FixtureForButtonAndQT","close")
+
+return retDict.result
+}
+
+
+
+def enterDiags(target,iLoopTimes){
+    bRet = False
+    for i in range(0,iLoopTimes)
+    {
+        strMode = checkDutMode(target)
+        if(strMode == "OSMode")
+        {
+            Atlas.call_plugin("SerialPort","send",{"target": target,"command": "reboot","uartLogPath": Globals.system.uartlog.path})
+        }
+        else if(strMode == "LogInOSMode")
+        {
+            Atlas.call_plugin("SerialPort","send",{"target": target,"command": "root","uartLogPath": Globals.system.uartlog.path})
+            Atlas.call_plugin("SerialPort","get",{"target": target,"endSymbol": ["Password:"], "timeout": 3,"uartLogPath": Globals.system.uartlog.path})
+            Atlas.call_plugin("SerialPort","send",{"target": target,"command": "alpine","uartLogPath": Globals.system.uartlog.path})
+            Atlas.call_plugin("SerialPort","get",{"target": target,"endSymbol": ["root#"], "timeout": 3,"uartLogPath": Globals.system.uartlog.path})
+            Atlas.call_plugin("SerialPort","send",{"target": target,"command": "reboot","uartLogPath": Globals.system.uartlog.path})
+
+
+        }
+        else if(strMode == "RecoveryMode")
+        {
+            Atlas.call_plugin("SerialPort","send",{"target": target,"command": "diags","uartLogPath": Globals.system.uartlog.path})
+            Atlas.call_plugin("SerialPort","get",{"target": target,"endSymbol": [":-)"], "timeout": 3,"uartLogPath": Globals.system.uartlog.path})
+        }
+        else if(strMode == "DiagsMode")
+        {
+            bRet = True
+            break
+        }
+        else if(strMode == "MessyCodeMode")
+        {
+            break
+        }
+        System.sleep(0.5)
+    }
+    return bRet
+}
+
+def checkDutMode(target){
+    strMode = "UnkownMode"
+    Atlas.call_plugin("SerialPort","send",{"target": target,"command": "","uartLogPath": Globals.system.uartlog.path})
+    strResponse = Atlas.call_plugin("SerialPort","get",{"target": target,"endSymbol": [], "timeout": 1,"uartLogPath": Globals.system.uartlog.path})
+    strResponse = String_TrimSpace(strResponse)
+    atlasLogInfo("checkDutMode read value =",strResponse)
+    iLen = size(strResponse)
+    if(Strings.location_of_substring(strResponse,"iPhone:~ root#")!= Nil){
+        strMode = "OSMode"
+    }else if(Strings.location_of_substring(strResponse,"login:")!= Nil){
+        strMode = "LogInOSMode"
+    }else if(String_endWith(strResponse,"]") or Strings.location_of_substring(strResponse,"Entering recovery mode")!= Nil){
+        strMode = "RecoveryMode"
+    }else if(String_endWith(strResponse,":-)")){
+        strMode= "DiagsMode"
+    }else{
+        if(iLen>3){
+            strResponse = strResponse[iLen-3:]
+        }
+        if(iLen>0 and (!Strings.isprint(strResponse) or strResponse == "}")){
+            strMode = "MessyCodeMode"
+        }
+    }
+    # UI_ShowMessage(strResponse+"Get the Dut Mode =:"+strMode)
+    atlasLogInfo("checkDutMode =",strMode)
+    return strMode
+}
+def setupDiags(parameter){
+    target = parameter.target onError e-> target = "Dut"
+    defaultBaudRate = parameter.defaultBaudRate onError e-> defaultBaudRate = "115200"
+    times = parameter.times onError e-> times = 20
+
+    if has_key(Globals.system.stationTopology, "groups")
+    {
+    dicDevice = Globals.system.stationTopology["groups"][0]["units"][Atlas.Unit.unit_identifier] onError e-> dicDevice = {}
+    }
+    else
+    {
+    dicDevice = Globals.system.stationTopology.units[Atlas.Unit.unit_identifier] onError e-> dicDevice = {}
+    }
+    port = dicDevice.unit_transports onError e-> if True{
+        Atlas.Log.error("can not find device:",port)
+        return _createResponseDict(False,{})
+    }
+
+    bRet = Atlas.call_plugin("SerialPort","dutSetupDiags",{"port": port, "repeatCount": times, "baudRate": defaultBaudRate, "logPath":Globals.system.uartlog.path})
+
+    if bRet{
+        return _createResponseDict(True,{})
+    }
+    else{
+        return _createResponseDict(False,{})
+    }
+}
+
+def setupBaudRate(parameter)
+{
+    target = parameter.target onError e-> target = "Dut"
+    defaultBaudRate = parameter.defaultBaudRate onError e-> defaultBaudRate = "115200"
+    baudRate =parameter.baudRate
+    bWithHVC = parameter.withHVC onError e-> bWithHVC = False
+
+    dicDevice = Atlas.Unit.user_info[target] onError e-> dicDevice = {}
+    port = dicDevice.port onError e-> if True{
+        Atlas.Log.error("openPort can not find device:",port)
+        return _createResponseDict(False,{})
+    }
+
+    result = Atlas.call_plugin("SerialPort","openPort",{"target": target,
+            "port": port,
+            "baudRate": defaultBaudRate,
+            "dataBit": "8",
+            "stopBit": "1",
+            "parity": "0",
+            "endSymbol": "\r"})
+    if not result{
+        Atlas.Log.error("Open port fail!")
+        return _createResponseDict(False,{})
+    }
+
+    bRet = enterDiags(target,10)
+    if bRet
+    {
+        if(bWithHVC){
+           Atlas.call_plugin("SerialPort","send",{"target": target,"command": "[{SET_BAUD-230400}]", "uartLogPath": Globals.system.uartlog.path})
+        }
+        else{
+            Atlas.call_plugin("SerialPort","send",{"target": target,"command": "baud 230400", "uartLogPath": Globals.system.uartlog.path})
+        }
+        System.sleep(0.5)
+    }
+    else{
+        if(bWithHVC){
+             # step1 make sure HVC cable is 115200 baud rate
+            Atlas.call_plugin("SerialPort","closePort",{"target": target})
+            Atlas.call_plugin("SerialPort","openPort",{"target": target,
+                "port": port,
+                "baudRate": baudRate,
+                "dataBit": "8",
+                "stopBit": "1",
+                "parity": "0",
+                "endSymbol": "\r"})
+
+            Atlas.call_plugin("SerialPort","send",{"target": target,"command": "[{SET_BAUD-115200}]", "uartLogPath": Globals.system.uartlog.path})
+            System.sleep(0.2)
+
+            #step2 change HVC calbe baud rate to 230400
+            Atlas.call_plugin("SerialPort","closePort",{"target": target})
+            Atlas.call_plugin("SerialPort","openPort",{"target": target,
+                "port": port,
+                "baudRate": defaultBaudRate,
+                "dataBit": "8",
+                "stopBit": "1",
+                "parity": "0",
+                "endSymbol": "\r"})
+            Atlas.call_plugin("SerialPort","send",{"target": target,"command": "[{SET_BAUD-230400}]", "uartLogPath": Globals.system.uartlog.path})
+            System.sleep(0.2)
+        }
+    }
+
+    # Double check baud rate
+    Atlas.call_plugin("SerialPort","closePort",{"target": target})
+    Atlas.call_plugin("SerialPort","openPort",{"target": target,
+            "port": port,
+            "baudRate": baudRate,
+            "dataBit": "8",
+            "stopBit": "1",
+            "parity": "0",
+            "endSymbol": "\r"})
+    bRet = enterDiags(target,10)
+    if not bRet{
+        return _createResponseDict(False,{})
+    }
+    Atlas.call_plugin("SerialPort","closePort",{"target": target})
+    return _createResponseDict(True,{})
+}
+
+
+def getNowTime(parameter){
+    atlasLogInfo("parameter:",parameter)
+    timeZone = parameter.timeZone onError e-> if True{
+        timeZone = Nil
+    }
+    timeFormat = parameter.timeFormat onError e-> if True{
+        timeFormat="yyyyMMddHHmmss"
+    }
+    nowTime = Atlas.call_plugin("RushSupplement", "getNowTime",{"timeFormat": timeFormat, "timeZone": timeZone})
+    returnValue = nowTime.returnValue onError e-> returnValue = ""
+    return _createResponseDict(True,{parameter.output[0] : returnValue})
+}
+
+def skipByRegex(parameter) {
+  _skipCount = 0
+  _skipTestList = []
+
+  _string = parameter.input.customKey onError e-> if True{
+    _string = parameter.input.defaultKey
+  }
+  _pattern = parameter.pattern
+  _groups = Regex.groups(_string, _pattern, 8)
+  _result = Nil
+  if size(_groups) > 0 {
+    _result = _groups[0]
+  }
+
+  _passSkip = parameter.passSkip onError e-> _passSkip = False
+  atlasLogInfo("passSkip:",_passSkip,"catchResult:",_result)
+  if(_passSkip and _result != Nil){
+     _skipCount = parameter.skipCount onError e -> if True {
+    }
+
+    _skipTestList = parameter.skipTestList onError e -> if True {
+    }
+  }
+  else if(!_passSkip and _result==Nil){
+    _skipCount = parameter.skipCount onError e -> if True {
+    }
+
+    _skipTestList = parameter.skipTestList onError e -> if True {
+    }
+  }
+  Globals.system.skipTestCount = _skipCount
+  Globals.system.skipTestList = Globals.system.skipTestList + _skipTestList
+  atlasLogInfo("skipByRegex skipCount:",_skipCount)
+  atlasLogInfo("skipByRegex current item skipTestList:",_skipTestList)
+
+  bRet = not isNil(_result)
+
+  if parameter.reversalResult{
+    bRet = not bRet
+  }onError e-> if True{}
+
+  if parameter.alwaysPass{
+    bRet = True
+  }onError e-> if True{}
+
+  return _createResponseDict(bRet,{parameter.output[0] : _result})
+}
+
+def skipIfEqual(parameter)
+{
+  _skipCount = 0
+  _skipTestList = []
+
+  _value0 = numerify(parameter.input.value0) onError e -> if True {
+      _value0 = parameter.input.value0
+    }
+  _value1 = numerify(parameter.input.value1) onError e -> if True {
+      _value1 = parameter.input.value1
+    }
+
+
+  if _value0==_value1
+    {
+    _skipCount = parameter.skipCount onError e -> if True {}
+    _skipTestList = parameter.skipTestList onError e -> if True {}
+    }
+
+  atlasLogInfo("skipCount:",_skipCount)
+  Globals.system.skipTestCount = _skipCount
+  Globals.system.skipTestList = Globals.system.skipTestList + _skipTestList
+  atlasLogInfo("skipTestCount:",Globals.system.skipTestCount,"skipTestList:",Globals.system.skipTestList)
+  return _createResponseDict(True,{parameter.output[0] : "PASS"})
+}
+
+def skipBySubItemResult(parameter) {
+  _skipCount = 0
+  _skipTestList = []
+  _subItemResult  = Globals.system.bSubItemResult
+
+  _passSkip = parameter.passSkip onError e-> _passSkip = False
+  atlasLogInfo("passSkip:",_passSkip,"_subItemResult:",_subItemResult)
+  if(_passSkip and _subItemResult){
+     _skipCount = parameter.skipCount onError e -> if True {
+    }
+
+    _skipTestList = parameter.skipTestList onError e -> if True {
+    }
+  }
+  else if(!_passSkip and not _subItemResult){
+    _skipCount = parameter.skipCount onError e -> if True {
+    }
+
+    _skipTestList = parameter.skipTestList onError e -> if True {
+    }
+  }
+  Globals.system.skipTestCount = _skipCount
+  Globals.system.skipTestList = Globals.system.skipTestList + _skipTestList
+  atlasLogInfo("skipTestCount:",Globals.system.skipTestCount,"skipTestList:",Globals.system.skipTestList)
+  return _createResponseDict(True,{parameter.output[0] : "PASS"})
+}
+
+def skipByFinalResult(parameter) {
+  _skipCount = 0
+  _skipTestList = []
+  _finalResult    = Globals.system.bFinalResult
+
+  _passSkip = parameter.passSkip onError e-> _passSkip = False
+  atlasLogInfo("passSkip:",_passSkip,"_finalResult:",_finalResult)
+  if(_passSkip and _finalResult){
+     _skipCount = parameter.skipCount onError e -> if True {
+    }
+
+    _skipTestList = parameter.skipTestList onError e -> if True {
+    }
+  }
+  else if(!_passSkip and not _finalResult){
+    _skipCount = parameter.skipCount onError e -> if True {
+    }
+
+    _skipTestList = parameter.skipTestList onError e -> if True {
+    }
+  }
+  Globals.system.skipTestCount = _skipCount
+  Globals.system.skipTestList = Globals.system.skipTestList + _skipTestList
+  atlasLogInfo("skipByFinalResult, skipTestCount:",Globals.system.skipTestCount,"skipTestList:",Globals.system.skipTestList)
+  return _createResponseDict(True,{parameter.output[0] : "PASS"})
+}
+
+def nothingIfEqual(parameter) {
+  _skipCount = 0
+  _skipTestList = []
+
+  _value0 = parameter.input.value0
+  _value1 = parameter.input.value1
+
+  if _value0<>_value1 {
+    _skipCount = parameter.skipCount onError e -> if True {
+    }
+    _skipTestList = parameter.skipTestList onError e -> if True {
+    }
+  }
+
+  Globals.system.skipTestCount = _skipCount
+  Globals.system.skipTestList = Globals.system.skipTestList + _skipTestList
+
+  return _createResponseDict(True,{})
+}
+
+def skipByDeferentVSN(parameter) {
+
+  _skipCount = 0
+  _skipTestList = []
+  _input = parameter.input.customKey onError e -> if True {
+      _input={}
+  }
+  inputStringLength = size(_input)
+
+  _vsnArray = parameter.VSNLength onError e -> if True {
+      _vsnArray = []
+  }
+
+  arrLength = size(_vsnArray)
+
+  for i in range(0,arrLength){
+    if(inputStringLength == _vsnArray[i]){
+      _skipCount = parameter.skipCount onError e -> if True {
+
+      }
+      _skipTestList = parameter.skipTestList onError e -> if True {
+
+      }
+      break
+    }
+  }
+  atlasLogInfo("=========================================_skipCount:",_skipCount)
+  Globals.system.skipTestCount = _skipCount
+  Globals.system.skipTestList = Globals.system.skipTestList + _skipTestList
+  atlasLogInfo("skipTestCount:",Globals.system.skipTestCount,"skipTestList:",Globals.system.skipTestList)
+  return _createResponseDict(True,{parameter.output[0] : "PASS"})
+}
+
+#======================================================================================#
+def checkSystemSecure(parameter){
+  if(Atlas.are_files_secure()==:FALSE:){
+    Globals.system.skipTestCount = 1
+  }
+  return _createResponseDict(Atlas.are_files_secure(), {})  
+}
+
+def parseEEEECode(parameter)
+{
+  str_displaySN = parameter.input.customKey onError e -> if True {
+    str_displaySN = parameter.input.defaultKey
+  }
+
+  str_EEEECode = String_SubStringByFixLength(str_displaySN, 11, 4)
+
+  return _createResponseDict(True,{parameter.output[0] : str_EEEECode})
+}
+
+def setTestResultToShareMemory(parameter){
+
+    _preTestrlt = parameter.input.customKey onError e -> if True {
+      _preTestrlt = "Fail"
+    }
+    _key = cformat("%s_testResult",Atlas.Unit.unit_identifier)
+    Atlas.call_plugin("SystemMemory","storeIntoDictionary",{"key": _key, "value": _preTestrlt})
+
+    return _createResponseDict(True,{})
+
+}
+
+def serialNumberFlex2_sync(parameter)
+{
+
+  dicDevice = Globals.system.stationTopology.groups[0] onError e-> dicDevice = {}
+  dicDevice = dicDevice.units
+  units = []
+	for unitID,unit in dicDevice
+	{
+		if unit.enable
+		{
+			units = units :: unitID
+		}
+	}
+
+	Globals.system.memory.units = units onError e-> units = []
+  # units = Atlas.Unit.user_info["units"]
+
+  layout = [];
+
+  for i in range(units) {
+
+    _key = cformat("%s_testResult",units[i])
+    _preTestrlt = Atlas.call_plugin("SystemMemory","getObjectByKey",{"key": _key})
+    if _preTestrlt != "Pass"
+    {
+        continue
+    }
+
+    label = {
+      "type": "label",
+       #"text" : units[i]
+       "text" : "Please Scan " + units[i] + " SN"
+    }
+    type = {
+      "type" : "field",
+      "id" : units[i]
+    }
+    layout = layout + [label] + [type]
+  }
+  atlasLogInfo("layout: " + stringify(layout))
+
+  serial_number_request = {
+    "type" : "custom",
+    "layout" : layout
+  }
+
+  value1 = Atlas.call_app_sync("show-form", serial_number_request)
+
+  atlasLogInfo("scan return " + stringify(value1))
+  atlasLogInfo("unit " + Atlas.Unit.unit_identifier)
+
+  if (hasDuplicateValueInDictionary(value1))
+  {
+      raise exception("has duplicate serial number")
+  }
+
+  value2 = Atlas.call_app_sync("show-form", serial_number_request)
+
+  atlasLogInfo("scan return " + stringify(value2))
+  atlasLogInfo("unit " + Atlas.Unit.unit_identifier)
+
+  if (hasDuplicateValueInDictionary(value2))
+  {
+      raise exception("has duplicate serial number")
+  }
+
+  _sn_comparison_result = False
+  if value1[Atlas.Unit.unit_identifier]==value2[Atlas.Unit.unit_identifier] {
+    _sn_comparison_result = True      
+  }
+
+  return _createResponseDict(_sn_comparison_result,{parameter.output[0] : stringify(value1[Atlas.Unit.unit_identifier])})
+}
+
+def scanFlexConfig_sync(parameter)
+{
+
+  units = Globals.system.memory.units
+
+  layout = []
+  message = "Please scan the config name:\n请扫入正确的工单信息"
+  for i in range(units) {
+
+    _key = cformat("%s_testResult",units[i])
+    _preTestrlt = Atlas.call_plugin("SystemMemory","getObjectByKey",{"key": _key})
+    if _preTestrlt != "Pass"
+    {
+        continue
+    }
+
+    label = {
+      "type": "label",
+       #"text" : units[i]
+       "text" : message
+    }
+    type = {
+      "type" : "field",
+      "id" : units[i]
+    }
+    layout = layout + [label] + [type]
+  }
+  atlasLogInfo("layout: " + stringify(layout))
+
+  serial_number_request = {
+    "type" : "custom",
+    "layout" : layout
+  }
+  str_input = Atlas.call_app_sync("show-form", serial_number_request)[Atlas.Unit.unit_identifier]
+  #str_input = Scan_UIPrompt_WithSync(message)
+  bol_rlt = True
+  if (FX_String_IsContain(str_input, "D32-") == False) && (FX_String_IsContain(str_input, "D33-") == False)
+  {
+    # UI_ShowMessage_sync("Please check the config whether is right config\n请确认是否是正确的条码")
+    # raise exception("Scan Flex Config error!")
+   bol_rlt = False
+  }
+  #bol_rlt = Item_Config_CheckSpec("Config Name Reading", str_input)
+  
+  if bol_rlt
+  {
+    #FX_AddAttribute("S_BUILD", str_input)
+    Atlas.add_device_attribute("S_BUILD", str_input)
+  }
+  return _createResponseDict(True,{parameter.output[0]:str_input})
+}
+
+
+def Item_BurnSyscfgKey(name, str_SyscfgKey, str_BurnValue, str_LenSpec, optionalArgs...)
+{
+  str_Prefix = ""
+  str_Postfix = ""
+  if size(optionalArgs) == 2
+  {
+    str_Prefix = optionalArgs[0]
+    str_Postfix = optionalArgs[1]
+  }
+  bol_result = True
+
+  str_BurnCmd = "syscfg add " + str_SyscfgKey + " "
+  str_ReadCmd = "syscfg print " + str_SyscfgKey
+
+  if FX_String_IsNullOrEmpty(str_SyscfgKey)
+  {
+    bol_result = False
+    Atlas.create_record([name, "", "The Burn Syscfg Key is empty."], bol_result)
+    return bol_result
+    # raise exception(Atlas.Exceptions.TestFailedError, str_SyscfgKey,"The Burn Syscfg Key is empty.")
+  }
+  if FX_String_IsNullOrEmpty(str_BurnValue)
+  {
+    bol_result = False
+    Atlas.create_record([name, "", "The Burn Value is empty."], bol_result)
+    return bol_result
+    # raise exception(Atlas.Exceptions.TestFailedError, str_BurnValue,"The Burn Value is empty.")
+  }
+  
+  str_BurnValueWithQuotation = str_Prefix + str_BurnValue + str_Postfix
+  bol_LenSpec = True
+  if FX_String_IsNullOrEmpty(str_LenSpec) == False
+  {
+    arr_LenSpec = tokenize(str_LenSpec, "|")
+    int_ValueLen = size(str_BurnValue)
+
+    for str_Spec in arr_LenSpec
+    {
+      str_Spec = FX_String_TrimSpace(str_Spec)
+      int_SpecLen = numerify(str_Spec)
+      if int_SpecLen == int_ValueLen
+      {
+        bol_LenSpec = True
+        break
+      }
+      else
+      {
+        bol_LenSpec = False
+      }
+    }
+  }
+  if bol_LenSpec == False
+  {
+    bol_result = False
+    Atlas.create_record([name, stringify("The Burn Value length not meet with the len spec:", str_LenSpec)], bol_result)
+    return bol_result
+    # raise exception(Atlas.Exceptions.TestFailedError,str_LenSpec, stringify("The Burn Value length not meet with the len spec:", str_LenSpec))
+  }
+  
+  if size(optionalArgs) > 1
+  {
+    str_BurnCmd = str_BurnCmd + str_BurnValueWithQuotation
+  }
+  else
+  {
+    str_BurnCmd = str_BurnCmd + str_BurnValue
+  }
+
+  Unit_SendAndGet_v2(str_BurnCmd)
+  # Unit_Send(str_BurnCmd)
+  # if str_SyscfgKey == "MtCl"
+  # {
+  #   System.sleep(2)
+  # }
+  # else if str_SyscfgKey == "OrbG"
+  # {
+  #   System.sleep(1.5)
+  # }
+  # else if str_SyscfgKey == "GLCl"
+  # {
+  #   System.sleep(0.5)
+  # }
+  # else if str_SyscfgKey == "BLCl"
+  # {
+  #   System.sleep(0.1)
+  # }
+  # Unit_Get(10)
+  # sleep time need to check on line.
+  str_ReadRlt = Unit_SendAndGet_v2(str_ReadCmd)
+  if FX_String_IsContain(str_ReadRlt, str_BurnValue) == False
+  {
+    bol_result = False
+    Atlas.create_record([name, "", "The read and burn value are not same."], bol_result)
+    return bol_result
+    # raise exception(Atlas.Exceptions.TestFailedError, str_ReadRlt,"The read and burn value are not same.")
+  }
+  else
+  {
+    bol_result = True
+  }
+  Atlas.create_record([name, str_LenSpec, str_BurnValue], bol_result)
+  return bol_result
+}
+
+
+def UI_ShowMessage_sync(msg)
+{
+  msg = stringify(msg)
+  # Log_Info("UI --> Show ,", msg)
+  Atlas.call_app_sync("show-form", { "type" : "message", "message" : msg})
+}
+
+
+#Function: Check loop test for QT1/QT1-ENG/CG-SENSOR station
+#Return: Bool : True
+def judgeLoopTest(){
+    iLoopCount = Globals.system.stationSetup.system.maxLoopCount
+    iAutoTrigger = Globals.system.stationSetup.system.auto_trigger
+    atlasLogInfo("the max loop count is :-->", iLoopCount)
+    atlasLogInfo("the auto_trigger is :-->", iAutoTrigger)
+    bRet = True
+
+# loop test check by station
+    if((iLoopCount != Nil and iLoopCount != 1 and iLoopCount != 0) or (iAutoTrigger == :FALSE:)){
+        if(Strings.location_of_substring(StationInfo.station_id(),"QT1-PREBURN") != Nil){
+            Atlas.call_plugin("Fixture","sendCommand",{"command": "Hold In"})
+            Atlas.call_plugin("Fixture","sendCommand",{"command": "Bacon In"})
+        }
+        if(Strings.location_of_substring(StationInfo.station_id(),"SA-QT1") != Nil){
+            Atlas.call_plugin("Fixture","sendCommand",{"command": "Hold In"})
+            Atlas.call_plugin("Fixture","sendCommand",{"command": "Bacon In"})
+        }
+        if(Strings.location_of_substring(StationInfo.station_id(),"CG-SENSOR") != Nil){
+            Atlas.call_plugin("Fixture","sendCommand",{"command": "Open ALS Cover"})
+            Atlas.call_plugin("Fixture","sendCommand",{"command": "MLB Power On"})
+            Atlas.call_plugin("Fixture","sendCommand",{"command": "USB Power On"})
+        }
+    }
+    atlasLogInfo("result:", bRet)
+    return bRet
+}

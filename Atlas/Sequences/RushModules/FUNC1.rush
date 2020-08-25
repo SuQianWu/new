@@ -1,0 +1,1367 @@
+def findPort(parameter){
+  unit_number=Atlas.Unit.unit_identifier
+  Atlas.Log.info("unit_number***",unit_number)
+  plugin_name="UnitGenerator1"
+  command=numerify(unit_number[-1])
+  Atlas.Log.info("plugin_name***",plugin_name)
+  Atlas.call_plugin(plugin_name,"SR",{"command":command})
+
+  if(StationInfo.station_type() == "FG-FUNC2" or StationInfo.station_type() == "TEST1")
+  {
+    Globals.system.stationSetup = JSON.load(cformat("%s/Documents/Atlas/AtlasSystemData.json",System.getenv("HOME")))
+
+    Atlas.Log.info("unit_number***",Globals.system.stationSetup)
+  }
+  else
+  {
+    Globals.system.stationSetup = Atlas.call_plugin("SystemMemory","getObjectByKey",{"key": "stationSetup"})
+  }
+  return _createResponseDict(True,{})
+}
+
+def ReopenDutPort()
+{
+  retDict = {
+        "result" : True
+        "output" : {}
+    }
+
+  Atlas.Log.info("Json URL ***",Globals.system.stationSetup)
+
+  unit_number=Atlas.Unit.unit_identifier
+  Atlas.Log.info("unit_number***",unit_number)
+  if(unit_number == "unit_1")
+  {
+    UartPortPort = "uart://"+Globals.system.stationSetup.system.topology.units.unit_1.fixture_path.Dut_URL
+  }
+  if(unit_number == "unit_2")
+  {
+    UartPortPort = "uart://"+Globals.system.stationSetup.system.topology.units.unit_2.fixture_path.Dut_URL
+  }
+  if(unit_number == "unit_3")
+  {
+    UartPortPort = "uart://"+Globals.system.stationSetup.system.topology.units.unit_3.fixture_path.Dut_URL
+  }
+  if(unit_number == "unit_4")
+  {
+    UartPortPort = "uart://"+Globals.system.stationSetup.system.topology.units.unit_4.fixture_path.Dut_URL
+  }
+  
+  Atlas.call_plugin("Dut","changeLineTerminator",{"terminator":"\r"})
+  Atlas.call_plugin("Dut","changeDelimiter",{"delimiter":">"})
+  Atlas.call_plugin("Dut","open",{"uartPortURL":UartPortPort,"logFileName": "FixtureLog","stringToSendOnOpen":""}) onError e-> if True{
+  atlasLogInfo("Fixture Send command Fail")
+  
+  retDict = {
+        "result" : False
+        "output" : {}
+    }
+
+  }
+
+  return retDict
+
+}
+
+def ReadDUTPID(dicSetting)
+{
+  strValue = dicSetting.input.customKey onError e -> if True {
+        strValue = dicSetting.input.defaultKey
+    }
+  retDict = {
+        "result" : True
+        "output" : {}
+    }
+  PID_Number = ""
+  Vendor_Number =""
+
+  Arr = Strings.tokenize(strValue,"LOCATION")
+
+  unit_number=Atlas.Unit.unit_identifier
+  Atlas.Log.info("unit_number***",unit_number)
+  if(unit_number == "unit_1")
+  {
+    UartPortPort = Globals.system.stationSetup.system.topology.units.unit_1.fixture_path.Dut_URL
+  }
+  if(unit_number == "unit_2")
+  {
+    UartPortPort =Globals.system.stationSetup.system.topology.units.unit_2.fixture_path.Dut_URL
+  }
+  if(unit_number == "unit_3")
+  {
+    UartPortPort =Globals.system.stationSetup.system.topology.units.unit_3.fixture_path.Dut_URL
+  }
+  if(unit_number == "unit_4")
+  {
+    UartPortPort =Globals.system.stationSetup.system.topology.units.unit_4.fixture_path.Dut_URL
+  }
+
+  for _item in Arr
+  {
+    _groups = Regex.groups(_item, "("+UartPortPort+")", 0)
+    if size(_groups)>0
+    {
+      if(_groups[0] == UartPortPort)
+      {
+        total = Regex.groups(_item, "USB VID:PID=(.*) SER", 0)
+        newarr = Strings.tokenize(total[0],":")
+        PID_Number = "0x"+newarr[1]
+        Vendor_Number = "0x"+newarr[0]
+      }
+    }
+  }
+
+  if PID_Number =="" or Vendor_Number==""
+  {
+    retDict.result = False
+  }
+  else
+  {
+    retDict = {
+        "result" : True
+        "output" : {dicSetting.output[0] : PID_Number,dicSetting.output[1] : Vendor_Number}
+    }
+  }
+
+  return retDict
+}
+
+#check EEcode and chose Limits by EEcode
+
+def CheckEEcode(dicSetting)
+{
+  Unit_SN = dicSetting.USN
+
+  EEcode = Unit_SN[(size(Unit_SN)-6):(size(Unit_SN)-2)]
+
+  if(EEcode == "Q7MT")
+  {
+    resourcePath = System.getenv('HOME') + "/Library/Atlas/Resources"
+    basePath  =  resourcePath + "/SequenceBase"
+    _limits_file_path =  basePath + "/Limits/"+ StationInfo.station_type() + "_Limits_2m.csv"
+    
+    _all_limits = {}
+    _lines = BasicCSV.load(_limits_file_path)
+    _header_row = _lines[0]
+    _content_rows = _lines[1:]
+
+    for _row in _content_rows {
+    _newlimit = {
+      # "group" : Nil
+      # "name" : Nil
+      # "units" : Nil
+      # "upperLimit" : Nil
+      # "lowerLimit" : Nil
+      # "relaxedUpperLimit" : Nil
+      # "relaxedLowerLimit" : Nil
+      # "pattern" : Nil
+      # "testConditionFlag" : Nil
+      # "testCondition" : Nil
+      # "commands" : Nil
+    }
+
+      for i in range(_header_row) 
+      {
+        if isNil(_row[i])==False 
+          {
+            _newlimit[_header_row[i]] = _row[i]
+          }
+      } 
+      _all_limits[_newlimit.name] = _newlimit
+    }
+
+    Globals.system.limits["Limits"] = _all_limits
+    atlasLogInfo("EECode is Q7MT -->Change Limits file to 2m")
+  }
+  else if(EEcode == "Q7MR")
+  {
+    resourcePath = System.getenv('HOME') + "/Library/Atlas/Resources"
+    basePath  =  resourcePath + "/SequenceBase"
+    _limits_file_path =  basePath + "/Limits/"+ StationInfo.station_type() + "_Limits_03m.csv"
+    
+    _all_limits = {}
+    _lines = BasicCSV.load(_limits_file_path)
+    _header_row = _lines[0]
+    _content_rows = _lines[1:]
+
+    for _row in _content_rows {
+    _newlimit = {
+      # "group" : Nil
+      # "name" : Nil
+      # "units" : Nil
+      # "upperLimit" : Nil
+      # "lowerLimit" : Nil
+      # "relaxedUpperLimit" : Nil
+      # "relaxedLowerLimit" : Nil
+      # "pattern" : Nil
+      # "testConditionFlag" : Nil
+      # "testCondition" : Nil
+      # "commands" : Nil
+    }
+
+      for i in range(_header_row) 
+      {
+        if isNil(_row[i])==False 
+          {
+            _newlimit[_header_row[i]] = _row[i]
+          }
+      } 
+      _all_limits[_newlimit.name] = _newlimit
+    }
+    Globals.system.limits["Limits"] = _all_limits
+    atlasLogInfo("EECode is Q7MR -->Change Limits file to 0.3m")
+  }
+
+  return True
+}
+
+def changeLimitsforUSB_C(dicSetting)
+{
+  USB_value = dicSetting.USB_C_Value
+
+atlasLogInfo("sssssssssss", USB_value)
+
+  if(USB_value =="0.0")
+  {
+    resourcePath = System.getenv('HOME') + "/Library/Atlas/Resources"
+    basePath  =  resourcePath + "/SequenceBase"
+    _limits_file_path =  basePath + "/Limits/"+ StationInfo.station_type() + "_Limits_USB.csv"
+    
+    _all_limits = {}
+    _lines = BasicCSV.load(_limits_file_path)
+    _header_row = _lines[0]
+    _content_rows = _lines[1:]
+
+    for _row in _content_rows {
+    _newlimit = {
+      # "group" : Nil
+      # "name" : Nil
+      # "units" : Nil
+      # "upperLimit" : Nil
+      # "lowerLimit" : Nil
+      # "relaxedUpperLimit" : Nil
+      # "relaxedLowerLimit" : Nil
+      # "pattern" : Nil
+      # "testConditionFlag" : Nil
+      # "testCondition" : Nil
+      # "commands" : Nil
+    }
+
+      for i in range(_header_row) 
+      {
+        if isNil(_row[i])==False 
+          {
+            _newlimit[_header_row[i]] = _row[i]
+          }
+      } 
+      _all_limits[_newlimit.name] = _newlimit
+    }
+    Globals.system.limits["Limits"] = _all_limits
+    atlasLogInfo("Change USB Limits to NA")
+  }
+  return True
+}
+
+
+
+
+#将获取到的Value值除以1000 
+def DivideValue(dicSetting){
+    retDict = {
+        "result" : True
+        "output" : {}
+    }
+
+    First_value = dicSetting.FirstValue
+    Second_value = 0.001
+
+    if isString(First_value)
+        {
+          Second_value = numerify(First_value)*Second_value
+        }
+
+    retDict = {
+        "result" : True
+        "output" : {dicSetting.output[0] : Second_value}
+    }
+    return retDict
+}
+
+
+#HexToIn 
+
+def HexToInt(dicSetting)
+{
+  String = dicSetting.InputValue
+
+  result = True
+
+  retDict = {
+        "result" : result
+        "output" : {}
+  }
+
+  iValue = Convert_HexStringToNumber(String) onError e -> if True
+  {
+    iValue = ""
+    result = False
+  }
+  retDict = {
+        "result" : result
+        "output" : {dicSetting.output[0] : iValue}
+    }
+  return retDict
+}
+
+#Calculate_Frequency
+
+def CalforFrequency(dicSetting)
+{
+  firstValue  = dicSetting.FirstValue
+  secondValue = dicSetting.SecondValue
+
+  result = True
+  retDict = {
+    "result" : result
+    "output" : {}
+  }
+
+  SUM_Value = numerify(firstValue) + numerify(secondValue)
+
+  final_value = 48.0*1000.0/(SUM_Value+1)
+
+  group = Regex.groups(stringify(final_value), "(.{6})", 0)
+
+  if size(group)>0
+  {
+    Fvalue = group[0]
+  }
+
+  retDict = {
+    "result" : result
+    "output" : {dicSetting.output[0] : Fvalue}
+  }
+
+  return retDict
+}
+
+#Calculate_duty_cycle
+
+def CalforDutyCycle(dicSetting)
+{
+  firstValue  = dicSetting.FirstValue
+  secondValue = dicSetting.SecondValue
+  thirdValue  = dicSetting.ThirdValue
+
+  result = True
+  retDict = {
+    "result" : result
+    "output" : {}
+  }
+
+  SUM_Value = numerify(firstValue) + numerify(secondValue)
+
+  final_value = 100.0*(numerify(thirdValue)/(SUM_Value + 1))
+
+  retDict = {
+    "result" : result
+    "output" : {dicSetting.output[0] : final_value}
+  }
+
+  return retDict
+}
+
+def CalforDC_DC(dicSetting)
+{
+  firstValue   = dicSetting.FirstValue
+  secondValue  = dicSetting.SecondValue
+  thirdValue   = dicSetting.ThirdValue
+  fourthValue  = dicSetting.FourthValue
+  retDict = {
+    "result" : True
+    "output" : {}
+  }
+
+  Fvalue = (numerify(firstValue)*1000.0)*(numerify(secondValue)*1000.0)
+
+  SValue = (numerify(thirdValue)*1000.0)*(numerify(fourthValue)*1000.0)
+
+  final_value = 100.0*(Fvalue/SValue)
+
+  retDict = {
+    "result" : True
+    "output" : {dicSetting.output[0] : final_value}
+  }
+
+  return retDict
+}
+
+def EfficiencyForBoostOnAndOff(dicSetting)
+{
+  firstValue   = dicSetting.OffValue
+  secondValue  = dicSetting.OnValue
+
+  retDict = {
+    "result" : True
+    "output" : {}
+  }
+
+  Fvalue = numerify(firstValue) - numerify(secondValue)
+
+  retDict = {
+    "result" : True
+    "output" : {dicSetting.output[0] : Fvalue}
+  }
+
+  return retDict
+}
+
+def CalAverageACP1voltage(dicSetting)
+{
+  firstValue   = dicSetting.InputValue
+  retDict = {
+    "result" : True
+    "output" : {}
+  }
+
+  TestValueFloat = 1.2 * (numerify(firstValue)/4095.0)*12.5
+
+  retDict = {
+    "result" : True
+    "output" : {dicSetting.output[0] : TestValueFloat}
+  }
+
+  return retDict
+
+}
+
+def LoopTestForCalculateACP1(dicSetting)
+{
+  result = True
+  retDict = {
+    "result" : result
+    "output" : {}
+  }
+
+  Loopcount = numerify(dicSetting.LoopCount)
+  fixtureName = dicSetting.FixtureName
+
+  SUM_Value = 0.0
+
+  for index in range(0,Loopcount)
+  {
+    Response = Atlas.call_plugin(fixtureName,"sendCommand",{"command": "i2c_read addr=0xf00002b0", "timeout": 10}) onError e-> if True{
+    atlasLogInfo("Fixture Send command Fail")
+    result = False
+    break;
+    }
+    atlasLogInfo("Loop Times is :",index+1)
+    group = Regex.groups(Response, "\\[val:(.*)\\]", 0)
+    if size(group)>0
+    {
+      val_value = group[0]
+      ivalue = Convert_HexStringToNumber(val_value)        
+      TestValueFloat = 1.2 * (ivalue/4095.0)*12.5
+      SUM_Value = SUM_Value + ivalue
+
+      atlasLogInfo("val_value is :",val_value,ivalue,SUM_Value)
+    } 
+    System.sleep(0.05)
+  }
+  
+  if(SUM_Value !=0.0 and result == True)
+  {
+    Avg_value = SUM_Value/Loopcount
+  }
+  
+  retDict = {
+    "result" : True
+    "output" : {dicSetting.output[0] : Avg_value}
+  }
+
+  return retDict
+}
+
+def DifferenceNormalAndFilpped(dicSetting)
+{
+  firstValue = dicSetting.NormalValue onError e -> firstValue=""
+  secondValue = dicSetting.FilppenValue onError e -> secondValue=""
+  
+  Fvalue = numerify(firstValue)-numerify(secondValue)
+  
+  FinalValue = stringify(Fvalue)
+
+  atlasLogInfo("FFFFFFFFFFF",FinalValue)
+  retDict = {
+    "result" : True
+    "output" : {dicSetting.output[0] : FinalValue}
+  }
+ return retDict
+}
+
+def CalculatePrect(dicSetting)
+{
+
+  retDict = {
+    "result" : True
+    "output" : {}
+  }
+
+  Vrect_Value = dicSetting.VrectValue onError e -> Vrect_Value = 0
+
+  Irect_Value = dicSetting.IrectValue onError e -> Irect_Value = 0
+
+  Prect_Value = numerify(Vrect_Value) * numerify(Irect_Value)
+
+  if(Prect_Value == 0)
+  {
+    retDict = {
+    "result" : False
+    "output" : {dicSetting.output[0] : Prect_Value}
+    }
+  }
+  else
+  {
+    retDict = {
+    "result" : True
+    "output" : {dicSetting.output[0] : Prect_Value}
+    }
+  }
+
+  return retDict
+}
+
+def ChangeVrectToTargetNumber(dicSetting)
+{
+  retDict = {
+          "result" : False
+          "output" : {}
+          }
+
+  Timeout  = 40
+
+  Start_Time = System.now()
+
+  InitNumber= numerify(dicSetting.InitNumber) onError e -> InitNumber = 6700
+
+  EveryBit  = numerify(dicSetting.everyBit) onError e -> EveryBit = 50
+
+  LowTarget = numerify(dicSetting.LowTarget) onError e -> LowTarget = 7.9
+
+  Uptarget  = numerify(dicSetting.UpTarget) onError e -> Uptarget = 8.1
+
+  fixtureName = dicSetting.FixtureName 
+
+  while(True)
+  {
+    GetTarget = False
+    if(InitNumber > 4080 or InitNumber < 100)
+    {
+      retDict = {
+          "result" : False
+          "output" : {}
+          }
+      break
+    }
+    writeDACLog("Send to Dut==>: "+"[VG-"+stringify(InitNumber)+"]"+"\n",Nil,"NOW")
+    Dutres = Atlas.call_plugin("Dut","sendCommand",{"command": "[VG-"+stringify(InitNumber)+"]", "timeout": 10}) onError e-> if True{
+    atlasLogInfo("Dut Send command Fail")}
+    writeDACLog("Dut Response==>: "+Dutres+"\n",Nil,"NOW")
+    System.sleep(0.5)
+    writeDACLog("Send to Fixture==>: "+"get_vrect ave_num=3"+"\n",Nil,"NOW")
+    Response = Atlas.call_plugin(fixtureName,"sendCommand",{"command": "get_vrect ave_num=3", "timeout": 10}) onError e-> if True{
+    atlasLogInfo("Fixture Send command Fail")}
+    writeDACLog("Fixture Response==>: "+Response+"\n",Nil,"NOW")
+    System.sleep(0.05)
+    group = Regex.groups(Response, "\\[vrect:(.*) V\\]", 0)
+    vrect_value = numerify(group[0])
+    atlasLogInfo("--------------Vrect Value------------------->",vrect_value)
+    if(LowTarget < vrect_value and vrect_value < Uptarget)
+    {
+      if(LowTarget < vrect_value and vrect_value < 7.95)
+      {
+        writeDACLog(" the final Vrect value is between 7.9 ~7.95 , need to decrease DAC 20  "+"\n",Nil,"NOW")
+        InitNumber = InitNumber - 10
+        writeDACLog("Send to Dut==>: "+"[VG-"+stringify(InitNumber)+"]"+"\n",Nil,"NOW")
+        Dutres = Atlas.call_plugin("Dut","sendCommand",{"command": "[VG-"+stringify(InitNumber)+"]", "timeout": 10}) onError e-> if True{
+        atlasLogInfo("Dut Send command Fail")}
+        writeDACLog("Dut Response==>: "+Dutres+"\n",Nil,"NOW")
+        System.sleep(0.5)
+        GetTarget = True
+        atlasLogInfo("Vrect is in Target Number")
+      }
+      
+      if(vrect_value >8.05)
+      {
+        writeDACLog(" the final Vrect value is between 8.05 ~ 8.1 , need to increase DAC 10  "+"\n",Nil,"NOW")
+        InitNumber = InitNumber + 10
+        writeDACLog("Send to Dut==>: "+"[VG-"+stringify(InitNumber)+"]"+"\n",Nil,"NOW")
+        Dutres = Atlas.call_plugin("Dut","sendCommand",{"command": "[VG-"+stringify(InitNumber)+"]", "timeout": 10}) onError e-> if True{
+        atlasLogInfo("Dut Send command Fail")}
+        writeDACLog("Dut Response==>: "+Dutres+"\n",Nil,"NOW")
+        System.sleep(0.5)
+        GetTarget = True
+        atlasLogInfo("Vrect is in Target Number")
+      }
+
+      if(vrect_value >7.95 and vrect_value < 8.05)
+      {
+        GetTarget = True
+        atlasLogInfo("Vrect is in Target Number")
+      }
+    }
+    else
+    {
+      if(LowTarget > vrect_value)
+      {
+        InitNumber = InitNumber - EveryBit
+      }
+
+      if(vrect_value > Uptarget)
+      {
+        InitNumber = InitNumber + EveryBit
+      }
+    }
+
+    if(GetTarget == True)
+    {
+      retDict = {
+          "result" : True
+          "output" : {dicSetting.output[0] : InitNumber}
+          }
+      atlasLogInfo("Vrect is between 7.9 and 8.1")
+      break
+    }
+
+    if((System.now()-Start_Time)>Timeout)
+      {
+        writeDACLog("===========Time OUT ============="+"\n",Nil,"NOW")
+        retDict = {
+          "result" : False
+          "output" : {dicSetting.output[0] : InitNumber}
+          }
+        break
+      }
+  }
+  return retDict
+}
+
+def ChangeVrectToTargetNumberByRxload(dicSetting)
+{
+  retDict = {
+          "result" : False
+          "output" : {}
+          }
+
+  Timeout  = 60
+
+  Start_Time = System.now()
+
+  InitDACNumber= numerify(dicSetting.InitDACNumber) onError e -> InitDACNumber = 2000
+
+  EveryDACBit  = numerify(dicSetting.EveryDACBit) onError e -> EveryDACBit = 20
+
+  Vrect_Target = numerify(dicSetting.Vrect_Target) onError e -> Vrect_Target = 7.9
+
+  InitRXloadNumber = numerify(dicSetting.InitRXloadNumber) onError e -> InitRXloadNumber = 20
+
+  EveryRXBit  = numerify(dicSetting.EveryRXBit) onError e -> EveryRXBit = 30
+
+  RXloadTarget  = numerify(dicSetting.RXloadTarget) onError e -> RXloadTarget = 300
+
+  fixtureName = dicSetting.FixtureName 
+
+  timeout = System.now()
+
+  BtimeResult = False
+
+  B_response  = False
+
+  B_DAC   = False
+  
+  B_Break = False
+
+  while(True)
+  {
+    
+    if((RXloadTarget - InitRXloadNumber)<30)
+    {
+      InitRXloadNumber = RXloadTarget
+    }
+    else
+    {
+      InitRXloadNumber = InitRXloadNumber + EveryRXBit
+    }
+
+    if(B_response == True)
+    {
+      writeDACLog(" Dut or Fixture response error , need to break."+"\n",Nil,"NOW")
+      break
+    }
+
+    writeDACLog("Send to Fixture==>: "+"set irect_set="+stringify(InitRXloadNumber)+"\n",Nil,"NOW")
+    Response = Atlas.call_plugin(fixtureName,"sendCommand",{"command": "set irect_set=" + stringify(InitRXloadNumber), "timeout": 2}) onError e-> if True{
+    atlasLogInfo("Fixture Send command Fail")
+      B_response  = True
+    }
+    writeDACLog("Fixture Response <==: "+Response+"\n",Nil,"NOW")
+    System.sleep(0.2)
+    writeDACLog("Send to Fixture==>: "+"get_vrect ave_num=3"+"\n",Nil,"NOW")
+    Vrect_Response = Atlas.call_plugin(fixtureName,"sendCommand",{"command": "get_vrect ave_num=3", "timeout": 2}) onError e-> if True{
+    atlasLogInfo("Fixture Send command Fail")
+      B_response  = True
+    }
+    writeDACLog("Fixture Response==>: "+Vrect_Response+"\n",Nil,"NOW")
+    System.sleep(0.2)
+    group = Regex.groups(Vrect_Response, "\\[vrect:(.*) V\\]", 0)
+    vrect_value = numerify(group[0])
+    if(vrect_value < 7)
+    {
+      writeDACLog("----------The Vrect is < 7 V -----------: "+stringify(vrect_value)+"\n",Nil,"NOW")
+      writeDACLog("Need to change DAC to set Vrect Value > 7.9V!"+"\n",Nil,"NOW")
+      while(True)
+      {
+        if(B_response == True)
+        {
+          writeDACLog(" Dut or Fixture response error , need to break."+"\n",Nil,"NOW")
+          break
+        }
+
+        if(InitDACNumber <200)
+        {
+          B_DAC = True
+          writeDACLog("DAC value is less than 100,need to break out!"+"\n",Nil,"NOW")
+          break
+        }
+        else
+        {
+          InitDACNumber = InitDACNumber - EveryDACBit
+        }
+        writeDACLog("DAC_Number need -20 = "+stringify(InitDACNumber)+"\n",Nil,"NOW")
+        writeDACLog("Send to Dut==>: "+"[VG-"+stringify(InitDACNumber)+"]"+"\n",Nil,"NOW")
+        Dutres = Atlas.call_plugin("Dut","sendCommand",{"command": "[VG-"+stringify(InitDACNumber)+"]", "timeout": 2}) onError e-> if True{
+        atlasLogInfo("Dut Send command Fail")
+          B_response = True
+        }
+        writeDACLog("Dut Response==>: "+Dutres+"\n",Nil,"NOW")
+        System.sleep(0.5)
+        DAC_Response = Atlas.call_plugin(fixtureName,"sendCommand",{"command": "get_vrect ave_num=3", "timeout": 2}) onError e-> if True{
+        atlasLogInfo("Fixture Send command Fail")
+        B_response  = True
+        }
+        writeDACLog("Fixture Response==>: "+DAC_Response+"\n",Nil,"NOW")
+        System.sleep(0.05)
+        group = Regex.groups(DAC_Response, "\\[vrect:(.*) V\\]", 0)
+        v_value = numerify(group[0])
+        if(v_value >7.9)
+        {
+          
+          while(True)
+          {
+
+            if(B_response == True)
+            {
+              writeDACLog(" Dut or Fixture response error , need to break."+"\n",Nil,"NOW")
+              break
+            }
+            writeDACLog("Send to Fixture==>: "+"set irect_set="+stringify(InitRXloadNumber)+"\n",Nil,"NOW")
+            Response = Atlas.call_plugin(fixtureName,"sendCommand",{"command": "set irect_set=" + stringify(InitRXloadNumber), "timeout": 2}) onError e-> if True{
+            atlasLogInfo("Fixture Send command Fail")
+            B_response  = True
+            }
+            writeDACLog("Fixture Response <==: "+Response+"\n",Nil,"NOW")
+            System.sleep(0.2)
+            writeDACLog("Send to Fixture==>: "+"get_vrect ave_num=3"+"\n",Nil,"NOW")
+            Vrect_Response = Atlas.call_plugin(fixtureName,"sendCommand",{"command": "get_vrect ave_num=3", "timeout": 2}) onError e-> if True{
+            atlasLogInfo("Fixture Send command Fail")
+            B_response  = True
+            }
+            writeDACLog("Fixture Response==>: "+Vrect_Response+"\n",Nil,"NOW")
+            System.sleep(0.2)
+            group = Regex.groups(Vrect_Response, "\\[vrect:(.*) V\\]", 0)
+            vr_value = numerify(group[0])
+            if(vr_value < 7.9)
+            {
+              while(True)
+              {
+                InitDACNumber = InitDACNumber - EveryDACBit
+                if(InitDACNumber <100)
+                {
+                  B_DAC = True
+                  writeDACLog("----DAC_Number is under 100, Break----- "+"\n",Nil,"NOW")
+                  break
+                }
+                if(B_response == True)
+                {
+                  writeDACLog(" Dut or Fixture response error , need to break."+"\n",Nil,"NOW")
+                  break
+                }
+                writeDACLog("DAC_Number need -20 = "+stringify(InitDACNumber)+"\n",Nil,"NOW")
+                writeDACLog("Send to Dut==>: "+"[VG-"+stringify(InitDACNumber)+"]"+"\n",Nil,"NOW")
+                Dutres = Atlas.call_plugin("Dut","sendCommand",{"command": "[VG-"+stringify(InitDACNumber)+"]", "timeout": 2}) onError e-> if True{
+                atlasLogInfo("Dut Send command Fail")
+                B_response  = True
+                }
+                writeDACLog("Dut Response==>: "+Dutres+"\n",Nil,"NOW")
+                System.sleep(0.2)
+                DAC_Response = Atlas.call_plugin(fixtureName,"sendCommand",{"command": "get_vrect ave_num=3", "timeout": 2}) onError e-> if True{
+                atlasLogInfo("Fixture Send command Fail")
+                B_response  = True
+                }
+                writeDACLog("Fixture Response==>: "+DAC_Response+"\n",Nil,"NOW")
+                System.sleep(0.05)
+                group = Regex.groups(DAC_Response, "\\[vrect:(.*) V\\]", 0)
+                vre_value = numerify(group[0])
+                if(B_response == True)
+                {
+                  writeDACLog(" Dut or Fixture response error , need to break."+"\n",Nil,"NOW")
+                  break
+                }
+                if(vre_value > 7.9)
+                {
+                  writeDACLog("Vrect value > 7.9 ,continue to increase RX load: "+"\n",Nil,"NOW")
+                  retDict = {
+                          "result" : True
+                          "output" : {dicSetting.output[0] : InitDACNumber}
+                        }
+                  break
+                }
+                if((System.now()-timeout) > Timeout)
+                {
+                  retDict = {
+                          "result" : False
+                          "output" : {dicSetting.output[0] : InitDACNumber}
+                        }
+                  writeDACLog("**********Time out ************ "+"\n",Nil,"NOW")
+                  BtimeResult = True
+                  break
+                }
+              }
+            }
+            if((RXloadTarget - InitRXloadNumber)<30)
+            {
+              InitRXloadNumber = RXloadTarget
+            }
+            else
+            {
+              InitRXloadNumber = InitRXloadNumber + EveryRXBit
+            }
+            if(B_response == False)
+            {
+              if(InitRXloadNumber == RXloadTarget)
+              {
+                writeDACLog("RX load is reach to target: "+stringify(InitRXloadNumber)+" start to check vrect value!"+"\n",Nil,"NOW")
+                writeDACLog("Send to Fixture==>: "+"set irect_set="+stringify(InitRXloadNumber)+"\n",Nil,"NOW")
+                Response = Atlas.call_plugin(fixtureName,"sendCommand",{"command": "set irect_set=" + stringify(InitRXloadNumber), "timeout": 2}) onError e-> if True{
+                atlasLogInfo("Fixture Send command Fail")
+                B_response  = True
+              }
+              System.sleep(0.2)
+              while(True)
+              {
+                DAC_Response_L = Atlas.call_plugin(fixtureName,"sendCommand",{"command": "get_vrect ave_num=3", "timeout": 2}) onError e-> if True{
+                atlasLogInfo("Fixture Send command Fail")
+                B_response  = True
+                }
+                writeDACLog("Fixture Response==>: "+DAC_Response_L+"\n",Nil,"NOW")
+                System.sleep(0.05)
+                group = Regex.groups(DAC_Response_L, "\\[vrect:(.*) V\\]", 0)
+                vreR_value = numerify(group[0])
+                if(vreR_value > 7.915 and vreR_value < 8.1)
+                {
+                  writeDACLog("Vrect value > 7.9V and < 8.1V ,can break : "+"\n",Nil,"NOW")
+                  retDict = {
+                          "result" : True
+                          "output" : {dicSetting.output[0] : InitDACNumber}
+                        }
+                  break
+                }
+
+                if(vreR_value > 8.1)
+                {
+                  InitDACNumber = InitDACNumber + 20
+                  writeDACLog("DAC_Number need +20 = "+stringify(InitDACNumber)+"\n",Nil,"NOW")
+                }
+                else
+                {
+                  InitDACNumber = InitDACNumber - 20
+                  writeDACLog("DAC_Number need -20 = "+stringify(InitDACNumber)+"\n",Nil,"NOW")
+                }
+                if(InitDACNumber <100)
+                {
+                  B_DAC = True
+                  writeDACLog("DAC value is less than 100,need to break out!"+"\n",Nil,"NOW")
+                  break
+                }
+
+                writeDACLog("Send to Dut==>: "+"[VG-"+stringify(InitDACNumber)+"]"+"\n",Nil,"NOW")
+                Dutres = Atlas.call_plugin("Dut","sendCommand",{"command": "[VG-"+stringify(InitDACNumber)+"]", "timeout": 2}) onError e-> if True{
+                atlasLogInfo("Dut Send command Fail")
+                B_response  = True
+                }
+                writeDACLog("Dut Response==>: "+Dutres+"\n",Nil,"NOW")
+                System.sleep(0.2)
+              }
+              if(B_response == True)
+              {
+                writeDACLog(" Dut or Fixture response error , need to break."+"\n",Nil,"NOW")
+                break
+              }
+              if(B_DAC == False and B_response == False)
+              {
+                writeDACLog("Rxload reach to target and Vrect >7.9 ,continue test!"+"\n",Nil,"NOW")
+                B_Break = True
+                break
+              }
+            }
+            }
+            
+            if(B_DAC == True)
+            {
+              writeDACLog("DAC value is less than 100,need to break out!"+"\n",Nil,"NOW")
+              break
+            }
+
+            if((System.now() - timeout ) > Timeout)
+            {
+              retDict = {
+                          "result" : False
+                          "output" : {dicSetting.output[0] : InitDACNumber}
+                      }
+              writeDACLog("**********Time out ************ "+"\n",Nil,"NOW")
+              break
+            }
+
+          }
+        }
+        if((System.now() - timeout) >Timeout)
+        {
+          BtimeResult = True
+          break
+        }
+        if(B_Break ==True)
+        {
+          retDict = {
+          "result" : True
+          "output" : {dicSetting.output[0] : InitDACNumber}
+          }
+          writeDACLog("RX load reach to target ,continue test !"+"\n",Nil,"NOW")
+          break
+        }
+      }
+    }
+    if(InitRXloadNumber == RXloadTarget )
+    {
+      if(B_Break ==False)
+      {
+        if(vrect_value > 7 and vrect_value <7.9)
+        {
+          writeDACLog("Rx load is reach to target ,but vrect >7V and vrect <7.9 V!"+"\n",Nil,"NOW")
+          writeDACLog("----------7 V < The Vrect < 7.9  -----------: "+stringify(vrect_value)+"\n",Nil,"NOW")
+          writeDACLog("Need to change DAC to set Vrect Value > 7.9V!"+"\n",Nil,"NOW")
+          while(True)
+          {
+            if(B_response == True)
+            {
+              writeDACLog(" Dut or Fixture response error , need to break."+"\n",Nil,"NOW")
+              break
+            }
+
+            if(InitDACNumber <100)
+            {
+              B_DAC = True
+              writeDACLog("DAC value is less than 100,need to break out!"+"\n",Nil,"NOW")
+              break
+            }
+            else
+            {
+              InitDACNumber = InitDACNumber - EveryDACBit
+            }
+            writeDACLog("DAC_Number need -20 = "+stringify(InitDACNumber)+"\n",Nil,"NOW")
+            writeDACLog("Send to Dut==>: "+"[VG-"+stringify(InitDACNumber)+"]"+"\n",Nil,"NOW")
+            Dutres = Atlas.call_plugin("Dut","sendCommand",{"command": "[VG-"+stringify(InitDACNumber)+"]", "timeout": 2}) onError e-> if True{
+            atlasLogInfo("Dut Send command Fail")
+            B_response = True
+            }
+            writeDACLog("Dut Response==>: "+Dutres+"\n",Nil,"NOW")
+            System.sleep(0.5)
+            DAC_Response = Atlas.call_plugin(fixtureName,"sendCommand",{"command": "get_vrect ave_num=3", "timeout": 2}) onError e-> if True{
+            atlasLogInfo("Fixture Send command Fail")
+            B_response = True
+            }
+            writeDACLog("Fixture Response==>: "+DAC_Response+"\n",Nil,"NOW")
+            System.sleep(0.05)
+            group = Regex.groups(DAC_Response, "\\[vrect:(.*) V\\]", 0)
+            v_value = numerify(group[0])
+            if(v_value >7.91)
+            {
+              B_Break = True
+              writeDACLog("Vrect value > 7.9 ,can break : "+"\n",Nil,"NOW")
+              break
+            }
+          }
+        }
+      }
+    }
+    if(B_Break == True)
+    {
+      retDict = {
+          "result" : True
+          "output" : {dicSetting.output[0] : InitDACNumber}
+          }
+      writeDACLog("continue test !"+"\n",Nil,"NOW")
+      break
+    }
+
+    if(B_DAC ==True)
+    {
+      break
+    }
+
+    if((System.now() - timeout) > Timeout)
+    {
+      retDict = {
+          "result" : False
+          "output" : {dicSetting.output[0] : InitDACNumber}
+          }
+      writeDACLog("**********Time out ************ "+"\n",Nil,"NOW")
+      break
+    }
+  }
+
+  return retDict
+}
+
+def ChangeVrectToTargetNumberByDutyCycle(dicSetting)
+{
+  Timeout = 40
+
+  Start_Time = System.now()
+
+  InitDutyNumber    = numerify(dicSetting.InitDutyNumber) onError e -> InitDutyNumber = 17
+
+  InitRXload        = numerify(dicSetting.InitRxload) onError e ->  InitRXload = 50
+
+  EveryDutyBit      = numerify(dicSetting.everyDutyBit) onError e -> everyDutyBit = 1
+
+  EveryRXload       = numerify(dicSetting.EveryRXload) onError e -> everyRXload = 2
+
+  Vrect_Target      = numerify(dicSetting.VrectTarget) onError e -> Vrect_Target = 4.5
+  Up_Target         =   5.2
+  Low_Target        =   4.2
+  Prect_Target      = numerify(dicSetting.PrectTarget) onError e -> Prect_Target = 0.225
+  fixtureName       = dicSetting.FixtureName
+
+  while(True)
+  {
+    B_Final_Result = False
+    writeDACLog("Send to Dut ==>: "+stringify(InitDutyNumber)+"\n",Nil,"NOW")
+    Dutres = Atlas.call_plugin("Dut","sendCommand",{"command": "[EDL-"+stringify(InitDutyNumber)+"]", "timeout": 10}) onError e-> if True{
+    atlasLogInfo("Dut Send command Fail")}
+    writeDACLog("Dut Response  <==: "+Dutres+"\n",Nil,"NOW")
+    System.sleep(0.2)
+    writeDACLog("Send to Fixture==>: "+"get_vrect ave_num=3"+"\n",Nil,"NOW")
+    Fix_Response = Atlas.call_plugin(fixtureName,"sendCommand",{"command": "get_vrect ave_num=3", "timeout": 10}) onError e-> if True{
+    atlasLogInfo("Fixture Send command Fail")}
+    System.sleep(0.05)
+    writeDACLog("Fixture Response  <==: "+Fix_Response+"\n",Nil,"NOW")
+    group = Regex.groups(Fix_Response, "\\[vrect:(.*) V\\]", 0)
+    Vrect_value = numerify(group[0])
+
+    if(Vrect_value < Vrect_Target)
+    {
+      while(True)
+      {
+        B_v_Break = False
+        if(InitDutyNumber >49)
+        {
+          writeDACLog("duty cycle is >50 ,need to break "+"\n",Nil,"NOW")
+          break
+        }
+        InitDutyNumber = InitDutyNumber + EveryDutyBit
+        atlasLogInfo("duty cycle + 1 = ",InitDutyNumber)
+        writeDACLog("duty cycle need  + 1 % = "+stringify(InitDutyNumber)+"\n",Nil,"NOW")
+        Dutres = Atlas.call_plugin("Dut","sendCommand",{"command": "[EDL-"+stringify(InitDutyNumber)+"]", "timeout": 10}) onError e-> if True{
+        atlasLogInfo("Dut Send command Fail")}
+        writeDACLog("Dut Response  <==: "+Dutres+"\n",Nil,"NOW")
+        System.sleep(0.2)
+        writeDACLog("Send to Fixture==>: "+"get_vrect ave_num=3"+"\n",Nil,"NOW")
+        Fix_Response = Atlas.call_plugin(fixtureName,"sendCommand",{"command": "get_vrect ave_num=3", "timeout": 10}) onError e-> if True{
+        atlasLogInfo("Fixture Send command Fail")}
+        System.sleep(0.05)
+        writeDACLog("Fixture Response  <==: "+Fix_Response+"\n",Nil,"NOW")
+        group = Regex.groups(Fix_Response, "\\[vrect:(.*) V\\]", 0)
+        Vrect_value = numerify(group[0])
+        if(Vrect_value >Vrect_Target)
+        {
+          InitDutyNumber = InitDutyNumber - EveryDutyBit
+          B_Final_Result = True
+          Dutres = Atlas.call_plugin("Dut","sendCommand",{"command": "[EDL-"+stringify(InitDutyNumber)+"]", "timeout": 10}) onError e-> if True{
+          atlasLogInfo("Dut Send command Fail")}
+          System.sleep(0.2)
+          Fix_Response = Atlas.call_plugin(fixtureName,"sendCommand",{"command": "get_vrect ave_num=3", "timeout": 10}) onError e-> if True{
+          atlasLogInfo("Fixture Send command Fail")}
+          System.sleep(0.05)
+          group = Regex.groups(Fix_Response, "\\[vrect:(.*) V\\]", 0)
+          Vrect_value1 = numerify(group[0])
+          if((Vrect_value-Vrect_Target)>(Vrect_Target-Vrect_value1))
+          {
+            writeDACLog("find Vrect colsely to 4.5 value is  "+stringify(Vrect_value1)+"\n",Nil,"NOW")
+            writeDACLog("Final duty cycle is   "+stringify(InitDutyNumber)+"\n",Nil,"NOW")
+          }
+          else
+          {
+            InitDutyNumber = InitDutyNumber + EveryDutyBit
+            B_Final_Result = True
+            Dutres = Atlas.call_plugin("Dut","sendCommand",{"command": "[EDL-"+stringify(InitDutyNumber)+"]", "timeout": 10}) onError e-> if True{
+            atlasLogInfo("Dut Send command Fail")}
+            System.sleep(0.2)
+            Fix_Response = Atlas.call_plugin(fixtureName,"sendCommand",{"command": "get_vrect ave_num=3", "timeout": 10}) onError e-> if True{
+            atlasLogInfo("Fixture Send command Fail")}
+            System.sleep(0.05)
+            group = Regex.groups(Fix_Response, "\\[vrect:(.*) V\\]", 0)
+            Vrect_value = numerify(group[0])
+            writeDACLog("find Vrect colsely to 4.5 value is ---> "+stringify(Vrect_value)+"\n",Nil,"NOW")
+            writeDACLog("Final duty cycle is  ---> "+stringify(InitDutyNumber)+"\n",Nil,"NOW")
+          }
+          break
+        }
+        if((System.now()-Start_Time)>Timeout)
+        {
+          writeDACLog("===========Time OUT ============="+"\n",Nil,"NOW")
+          break
+        }
+      }
+      retDict = {
+          "result" : True
+          "output" : {dicSetting.output[0] : InitDutyNumber}
+        }
+      writeDACLog("*************Vrect is colse Vrect Target,can break*************"+"\n",Nil,"NOW")
+      break  
+    }
+
+    if(Vrect_Target < Vrect_value and Vrect_value <Up_Target )
+    {
+      writeDACLog("Vrect value is between 4.5 ~5.2 ,Try to find just above 4.5 value "+"\n",Nil,"NOW")
+      while(True)
+      {
+        if(InitDutyNumber >49)
+        {
+          writeDACLog("duty cycle is >50 ,need to break "+"\n",Nil,"NOW")
+          break
+        }
+        InitDutyNumber = InitDutyNumber - EveryDutyBit
+        atlasLogInfo("duty cycle - 1 = ",InitDutyNumber)
+        writeDACLog("duty cycle need  - 1 % = "+stringify(InitDutyNumber)+"\n",Nil,"NOW")
+        writeDACLog("Send to Dut ==>: "+stringify(InitDutyNumber)+"\n",Nil,"NOW")
+        Dutres = Atlas.call_plugin("Dut","sendCommand",{"command": "[EDL-"+stringify(InitDutyNumber)+"]", "timeout": 10}) onError e-> if True{
+        atlasLogInfo("Dut Send command Fail")
+        }
+        writeDACLog("Dut Response  <==: "+Dutres+"\n",Nil,"NOW")
+        System.sleep(0.2)
+        writeDACLog("Send to Fixture==>: "+"get_vrect ave_num=3"+"\n",Nil,"NOW")
+        Fix_Response = Atlas.call_plugin(fixtureName,"sendCommand",{"command": "get_vrect ave_num=3", "timeout": 10}) onError e-> if True{
+        atlasLogInfo("Fixture Send command Fail")
+        }
+        System.sleep(0.05)
+        writeDACLog("Fixture Response  <==: "+Fix_Response+"\n",Nil,"NOW")
+        group = Regex.groups(Fix_Response, "\\[vrect:(.*) V\\]", 0)
+        Vrect_value = numerify(group[0])
+        if(Vrect_value <Vrect_Target)
+        {
+          InitDutyNumber = InitDutyNumber + EveryDutyBit
+          B_Final_Result = True
+          Dutres = Atlas.call_plugin("Dut","sendCommand",{"command": "[EDL-"+stringify(InitDutyNumber)+"]", "timeout": 10}) onError e-> if True{
+          atlasLogInfo("Dut Send command Fail")
+          }
+          System.sleep(0.2)
+          Fix_Response = Atlas.call_plugin(fixtureName,"sendCommand",{"command": "get_vrect ave_num=3", "timeout": 10}) onError e-> if True{
+          atlasLogInfo("Fixture Send command Fail")
+          }
+          System.sleep(0.05)
+          group = Regex.groups(Fix_Response, "\\[vrect:(.*) V\\]", 0)
+          Vrect_value1 = numerify(group[0])
+          if((Vrect_value1-Vrect_Target)<(Vrect_Target-Vrect_value))
+          {
+            writeDACLog("find Vrect colsely to 4.5 value is  "+stringify(Vrect_value1)+"\n",Nil,"NOW")
+            writeDACLog("Final duty cycle is   "+stringify(InitDutyNumber)+"\n",Nil,"NOW")
+          }
+          else
+          {
+            InitDutyNumber = InitDutyNumber - EveryDutyBit
+            B_Final_Result = True
+            Dutres = Atlas.call_plugin("Dut","sendCommand",{"command": "[EDL-"+stringify(InitDutyNumber)+"]", "timeout": 10}) onError e-> if True{
+            atlasLogInfo("Dut Send command Fail")}
+            System.sleep(0.2)
+            Fix_Response = Atlas.call_plugin(fixtureName,"sendCommand",{"command": "get_vrect ave_num=3", "timeout": 10}) onError e-> if True{
+            atlasLogInfo("Fixture Send command Fail")}
+            System.sleep(0.05)
+            group = Regex.groups(Fix_Response, "\\[vrect:(.*) V\\]", 0)
+            Vrect_value = numerify(group[0])
+            writeDACLog("find Vrect colsely to 4.5 value is ---> "+stringify(Vrect_value)+"\n",Nil,"NOW")
+            writeDACLog("Final duty cycle is  ---> "+stringify(InitDutyNumber)+"\n",Nil,"NOW")
+          }
+          break
+        }
+        if((System.now()-Start_Time)>Timeout)
+        {
+          writeDACLog("===========Time OUT ============="+"\n",Nil,"NOW")
+          break
+        }
+      }
+      retDict = {
+          "result" : True
+          "output" : {dicSetting.output[0] : InitDutyNumber}
+        }
+      writeDACLog("*************Vrect is colse Vrect Target,can break*************"+"\n",Nil,"NOW")
+      break
+    }
+    
+    if(Vrect_value > Up_Target)
+    {
+      InitDutyNumber = InitDutyNumber - EveryDutyBit
+      atlasLogInfo("duty cycle - 1 = ",InitDutyNumber)
+      writeDACLog("duty cycle need  - 1 % = "+stringify(InitDutyNumber)+"\n",Nil,"NOW")
+    }
+
+    if(InitDutyNumber >48)
+    {
+      writeDACLog("===========Duty cycle is 50%,break out ============="+"\n",Nil,"NOW")
+      retDict = {
+        "result" : False
+        "output" : {dicSetting.output[0] : InitDutyNumber}
+        }
+      break
+    }
+
+    if((System.now()-Start_Time)>Timeout)
+    {
+      writeDACLog("===========Time OUT ============="+"\n",Nil,"NOW")
+      retDict = {
+        "result" : False
+        "output" : {dicSetting.output[0] : InitDutyNumber}
+        }
+        break
+    }
+  }
+
+  Prect_Timeout = 20
+  Pre_Start = System.now()
+
+  FixResponse = Atlas.call_plugin(fixtureName,"sendCommand",{"command": "get_vrect ave_num=3", "timeout": 10}) onError e-> if True{
+  atlasLogInfo("Fixture Send command Fail")
+  }
+  writeDACLog("Fixture Response  <==: "+Fix_Response+"\n",Nil,"NOW")
+  System.sleep(0.05)
+  if(FixResponse !=Nil)
+  {
+    group = Regex.groups(FixResponse, "\\[vrect:(.*) V\\]", 0)
+    V_value = group[0]
+    writeDACLog("Vrect value is "+stringify(V_value)+"\n",Nil,"NOW")
+    P_value = numerify(V_value)  * (InitRXload*0.001) 
+    writeDACLog("Prect value is "+stringify(P_value)+"\n",Nil,"NOW")
+    writeDACLog("Prect_Target is "+stringify(Prect_Target)+"\n",Nil,"NOW")
+    if(P_value >Prect_Target)
+    {
+      PPValue =  P_value - Prect_Target
+    }
+    else
+    {
+      PPValue =  Prect_Target - P_value
+    }
+    writeDACLog("PPValue is "+stringify(PPValue)+"\n",Nil,"NOW")
+    if(PPValue < 0.05000)
+    {
+      atlasLogInfo("Prect is lower 50mW,continue test!")
+      writeDACLog("Prect is lower 50mW,continue test!"+"\n",Nil,"NOW")
+    }
+    else
+    {
+      while(True)
+      {
+        I_break = False
+        if(numerify(V_value) < Vrect_Target)
+        {
+          InitRXload = InitRXload + EveryRXload
+          writeDACLog("RX load need to +5 = "+stringify(InitRXload)+"\n",Nil,"NOW")
+        }
+        else
+        {
+          InitRXload = InitRXload - EveryRXload
+          writeDACLog("RX load need to -5 = "+stringify(InitRXload)+"\n",Nil,"NOW")
+        }
+        if(InitRXload==0)
+        {
+          retDict = {
+          "result" : False
+          "output" : {dicSetting.output[0] : InitDutyNumber}
+            }
+          break
+        }
+        writeDACLog("Send to Fixture ==> "+"set irect_set=" + stringify(InitRXload)+"\n",Nil,"NOW")
+        FixResponse_set = Atlas.call_plugin(fixtureName,"sendCommand",{"command": "set irect_set=" + stringify(InitRXload), "timeout": 10}) onError e-> if True{
+        atlasLogInfo("Fixture Send command Fail")
+        }
+        writeDACLog("Fixture Response <== "+FixResponse_set+"\n",Nil,"NOW")
+        System.sleep(0.2)
+        FixResponse = Atlas.call_plugin(fixtureName,"sendCommand",{"command": "get_vrect ave_num=3", "timeout": 10}) onError e-> if True{
+        atlasLogInfo("Fixture Send command Fail")
+        }
+        System.sleep(0.05)
+        writeDACLog("Fixture Response <== "+FixResponse+"\n",Nil,"NOW")
+        if(FixResponse !=Nil)
+        {
+          group = Regex.groups(FixResponse, "\\[vrect:(.*) V\\]", 0)
+          Vre_value = group[0]
+          P_value = numerify(Vre_value)  * (InitRXload*0.001) 
+          writeDACLog("Now Prect is ==> "+stringify(P_value)+"\n",Nil,"NOW")
+
+          if(P_value >Prect_Target)
+          {
+            PPValue =  P_value - Prect_Target
+          }
+          else
+          {
+            PPValue =  Prect_Target - P_value
+          }
+          if(PPValue<0.05)
+          {
+            atlasLogInfo("Prect is lower 20mW,can break")
+            I_break = True
+          }
+        }
+        if(I_break == True)
+        {
+          retDict = {
+            "result" : True
+            "output" : {dicSetting.output[0] : InitDutyNumber}
+            }
+          break
+        }
+
+        if(InitRXload < 5)
+        {
+          writeDACLog("===========RX load is 0mA ,break out ============="+"\n",Nil,"NOW")
+          retDict = {
+          "result" : False
+          "output" : {dicSetting.output[0] : InitDutyNumber}
+          }
+          break
+        }
+
+
+        if((System.now()-Pre_Start)>Prect_Timeout)
+        {
+          writeDACLog("===========Time OUT ============="+"\n",Nil,"NOW")
+          retDict = {
+          "result" : False
+          "output" : {dicSetting.output[0] : InitDutyNumber}
+          }
+          break
+        }
+      }
+    }
+  }
+  return retDict
+
+}

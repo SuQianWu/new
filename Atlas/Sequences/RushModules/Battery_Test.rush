@@ -1,0 +1,19 @@
+
+def checkBlacklist(dicSetting)
+{
+    atlasLogInfo('start to do checkBlackList, para:', dicSetting)
+    check_chem_id = dicSetting.input.customKey
+    black_list = ['0x3997']
+    ret_value = {
+        "result" : False
+    }
+    if contains(black_list, check_chem_id)
+    {
+        return ret_value
+    }
+    else
+    {
+        ret_value['result'] = True
+        return ret_value
+    }
+}

@@ -1,0 +1,30 @@
+def FX_GeckoBypassImpedance (parameter) {
+  # commands = parameter.command
+
+# Item_Acc_Current(itemName, value_Acc, value_vldo6, underRange, overRange)
+#Item_Acc_Current("Gecko_Bypass_Impedance", value_V_R, value_vldo6, 0.85, 1.15)
+  # value_Acc = getValueFromShareDict(shareDict,parameter.input[0])
+  # value_vldo6 = getValueFromShareDict(shareDict,parameter.input[1])
+  value_Acc = parameter.input.acc
+  value_vldo6 = parameter.input.vldo6
+
+  underRange = 0.85
+  overRange = 1.15
+  _outputDistKey = parameter.output[0]
+  itemName = parameter.testName
+
+
+  value_Acc = numerify(value_Acc) / 21.5
+  underRange = underRange * numerify(value_vldo6) / 43
+  overRange = overRange * numerify(value_vldo6) / 43
+
+  isPass = value_Acc<=overRange && overRange >=underRange
+  spec = "[" + stringify(underRange) + "," + stringify(overRange) + "]"
+
+  Atlas.create_record([itemName, spec, stringify(value_Acc)], isPass)
+  # Atlas.create_record([itemName, spec, stringify(value_Acc)], isPass)  
+  _retDict = {}
+  _retDict.output = {}
+
+  return _retDict    
+}

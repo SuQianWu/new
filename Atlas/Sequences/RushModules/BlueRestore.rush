@@ -1,0 +1,134 @@
+#{"FileName":"brestore.ini"}
+def Check_File(dicSetting){
+    retDict = {
+        "result" : False
+    }
+
+    _Path     =  dicSetting.Path
+    _FileName =  dicSetting.FileName
+
+    _Path = Strings.splice( _Path,'~',System.getenv("HOME") )
+
+    atlasLogInfo("Check_File._Path:",_Path)
+
+    files = System.ls(_Path)
+    Atlas.Log.info("files:" ,files)
+
+    for file in files{
+        a = Regex.matches(file, _FileName, 0)
+        if (size(a) == 1 ){
+            retDict.result =  True
+            Atlas.Log.info("Find file:" ,file,size(a))
+            Atlas.create_record(["Find File",file,""], True, "")
+            break
+        }
+    }
+    return retDict
+}
+
+
+def Check_Folder(dicSetting){
+  retDict = {
+      "result" : True
+  }
+
+  _Path =  dicSetting.Path
+  _Path =  Strings.splice( _Path,'~',System.getenv("HOME") )
+
+  # atlasLogInfo("Check_Folder._Path:",_Path)
+
+  files = System.ls(_Path)
+  Atlas.Log.info("files:" ,files)
+  PASS_RECEIVE = ""
+  Check_FW_Name = ""
+  for file in files{
+      File_Map = Regex.matches(file, "ini", 0)
+      File_Hex = Regex.matches(file, "hex", 0)
+      if (size(File_Map) == 1 ){
+        Atlas.Log.info("Find File_Map:" ,file,size(File_Map))
+      }
+      else if (size(File_Hex) == 1){
+        Check_FW_Name = file
+        Atlas.Log.info("Find File_Hex:" ,file,size(File_Hex))
+      }
+      else{
+        if(size(PASS_RECEIVE) == 0){
+            PASS_RECEIVE =  file+"' -- PASSED!"
+        }
+        else{
+          PASS_RECEIVE = PASS_RECEIVE + ","+file+"' -- PASSED!"
+        }
+
+      }
+      Atlas.create_record(["Find File",file,""], True, "")
+  }
+    if(Check_FW_Name == "")
+    {
+        atlasLogInfo("DUMP_PASS_RECEIVE:",PASS_RECEIVE)
+        retDict = {
+            "PASS_RECEIVE" : PASS_RECEIVE
+        }
+    }
+    else
+    {
+        retDict = {
+            "Check_FW_Name": Check_FW_Name
+         }
+    }
+  return _createResponseDict(True,retDict)
+
+}
+
+
+def GeneratePath(dicSetting){
+    target = dicSetting.value
+    if(Nil != target && isArray(target))
+    {
+        newValue = ""
+        for value in target{
+            path= Strings.splice(value, '~/', System.getenv('HOME')+"/")
+            if(size(newValue) == 0){
+              newValue = path
+            }
+            else{
+              newValue = newValue +","+path
+            }
+
+        }
+        return _createResponseDict(True,{dicSetting.output[0] : newValue})
+    }
+    if(Nil != target && isString(target))
+    {
+        path=Strings.splice(target, '~/', System.getenv('HOME')+"/")
+        return _createResponseDict(True,{dicSetting.output[0] : path})
+    }
+    if(Nil == target){
+        return _createResponseDict(False,{dicSetting.output[0] : "Value is null"})
+    }
+}
+
+def getUsbmodemName(dicSetting){
+  dev_list = System.ls("/dev")
+  usbmodemList = []
+  for aFileName in dev_list{
+    if (Strings.location_of_substring(aFileName,"cu.usbmodem")!=Nil){
+      usbmodemList = usbmodemList + [aFileName]
+    }
+  }
+  strReturn = ""
+  for UsbName in usbmodemList{
+    if ((size(UsbName)-size("cu.usbmodem")) == 8 ){
+        strReturn = UsbName
+        break
+    }
+  }
+  bresult = True
+  if strReturn == ""{
+    bresult = False
+  }
+  reDic = {
+    "result" : bresult,
+    "output" :  {dicSetting.output[0] : strReturn}
+  }
+  return reDic
+}

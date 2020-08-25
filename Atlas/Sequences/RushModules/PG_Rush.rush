@@ -1,0 +1,130 @@
+
+
+
+
+# Read Fake dut response (csv format)
+# Allen
+def readFakeResponse(dicSetting)
+{
+    atlasLogInfo('>>>>>>>>>>start log Fake Data>>>>>>>>>>>>>')
+    FakeResponseData = BasicCSV.load(dicSetting['filepath'])
+    itemNameBefore = ""
+    dictTestCoverage = {}
+    for _line in FakeResponseData[1:]
+    {
+        itemName = _line[0]
+        if itemName == Nil
+        {
+            if itemNameBefore != Nil
+            {
+                itemName = itemNameBefore
+            }
+        }
+        else
+        {
+            itemNameBefore = _line[0]
+        }
+        command  = _line[1]
+        response = _line[2]
+        if has_key(dictTestCoverage, itemName)
+        {
+            dictTestCoverage[itemName]['command'] = dictTestCoverage[itemName]['command'] + [command]
+            dictTestCoverage[itemName]['response'] = dictTestCoverage[itemName]['response'] + [response]
+        }
+        else
+        {
+            commands = [command]
+            responses = [response]
+            dictTestCoverage[itemName] = {'command': commands, 'response': responses}
+        }
+
+    }
+    # println(dictTestCoverage)
+    return dictTestCoverage
+}
+
+
+
+
+def checkCommandResponse(dicSetting){
+    atlasLogInfo("parameter:",dicSetting)
+    atlasLogInfo("START CHECK COMMAND RESPONSE!")
+    strReturnValue = dicSetting.input.customKey onError e -> strReturnValue=dicSetting.input.defaultKey
+    aryPassReceive = dicSetting.PassReceive   onError e -> aryPassReceive=Nil
+    aryFailReceive = dicSetting.FailReceive   onError e -> aryFailReceive=Nil
+    outPutKey = dicSetting.output[0]
+    retDict = {
+      "result": True,
+      "output": { outPutKey : ""}
+    }
+    if strReturnValue != Nil or strReturnValue !="" {
+        if(isArray(aryPassReceive) && aryPassReceive != Nil && size(aryPassReceive) != 0){
+            iCount = size(aryPassReceive)
+            for i in range(0,iCount){
+                strPassReceive = aryPassReceive[i]
+                if(Strings.range_of_substring(strReturnValue, strPassReceive) == Nil){
+                Atlas.Log.error("Can't find pass key " + strPassReceive)
+                retDict = {
+                    "result": False,
+                    "output": { outPutKey : strReturnValue}
+                 }
+                 return retDict
+                }
+            }
+        }
+        if(isArray(aryFailReceive) && aryFailReceive != Nil && size(aryFailReceive) != 0){
+            iCount = size(aryFailReceive)
+            for i in range(0,iCount){
+                strFailsReceive = aryFailReceive[i]
+                if(Strings.range_of_substring(Strings.toupper(strReturnValue), Strings.toupper(strFailsReceive)) != Nil){
+                    Atlas.Log.error("Catch fail key " + strFailsReceive)
+                    retDict = {
+                    "result": False,
+                    "output": { outPutKey : strReturnValue}
+                 }
+                 return retDict
+                }
+            }
+        }
+        retDict.output[outPutKey]=strReturnValue
+        return retDict
+    }
+    else
+    {
+        Atlas.Log.error("Empty Response, the input value is Nil!")
+        retDict = {
+            "result": False,
+            "output": { outPutKey : ""}
+        }
+
+    }
+}
+
+
+
+
+
+
+
+
+def sfisLink(dicSetting){
+    atlasLogInfo("Original parameter:",dicSetting)
+    bRet = True
+    dicGHDSInfo = dicSetting.input.customKey onError e-> dicGHDSInfo = {}
+    stationLinkName = dicSetting.STATIONNAME
+    stationType = dicGHDSInfo.STATION_TYPE
+    stationIDOri = dicGHDSInfo.STATION_ID
+    stationID = Strings.splice(stationIDOri, stationType, stationLinkName)
+    dicGHDSInfo.STATION_ID = stationID
+    dicSetting = dicSetting + {"STATIONINFO": dicGHDSInfo}
+    atlasLogInfo("Latest parameter:",dicSetting)
+    retDict = {
+        "result" : True,
+        "output" : {}
+    }
+    dicResult = Atlas.call_plugin("RushSupplement","SFCLink",dicSetting)
+    if(not dicResult.result){
+        bRet = False
+    }
+    return _createResponseDict(bRet,{dicSetting.output[0] : dicResult.returnValue})
+}
